@@ -43,14 +43,22 @@
 
 // The feature flags byte encodes the compile-time config options that
 // affect the generate bytecode.
-#define MPY_FEATURE_FLAGS ( \
+#define MPY_FEATURE_FLAGS_BYTECODE ( \
     ((MICROPY_OPT_CACHE_MAP_LOOKUP_IN_BYTECODE) << 0) \
     | ((MICROPY_PY_BUILTINS_STR_UNICODE) << 1) \
     )
 // This is a version of the flags that can be configured at runtime.
-#define MPY_FEATURE_FLAGS_DYNAMIC ( \
+#define MPY_FEATURE_FLAGS_BYTECODE_DYNAMIC ( \
     ((MICROPY_OPT_CACHE_MAP_LOOKUP_IN_BYTECODE_DYNAMIC) << 0) \
     | ((MICROPY_PY_BUILTINS_STR_UNICODE_DYNAMIC) << 1) \
+    )
+
+// Similar to MPY_FEATURE_FLAGS_BYTECODE, but with the high bit set to
+// indicate the file type (native not bytecode).
+#define MPY_FEATURE_FLAGS_NATIVE ( \
+    ((MICROPY_OPT_CACHE_MAP_LOOKUP_IN_BYTECODE_DYNAMIC) << 0) \
+    | ((MICROPY_PY_BUILTINS_STR_UNICODE_DYNAMIC) << 1) \
+    | (1 << 7) \
     )
 
 #if MICROPY_PERSISTENT_CODE_LOAD || (MICROPY_PERSISTENT_CODE_SAVE && !MICROPY_DYNAMIC_COMPILER)
@@ -165,8 +173,6 @@ STATIC void load_bytecode_qstrs(mp_reader_t *reader, byte *ip, byte *ip_top) {
     }
 }
 
-STATIC mp_raw_code_t *load_raw_code(mp_reader_t *reader);
-
 STATIC mp_raw_code_t *load_raw_code_bytecode(mp_reader_t *reader) {
     // load bytecode
     size_t bc_len = read_uint(reader);
@@ -198,7 +204,7 @@ STATIC mp_raw_code_t *load_raw_code_bytecode(mp_reader_t *reader) {
         *ct++ = (mp_uint_t)load_obj(reader);
     }
     for (size_t i = 0; i < n_raw_code; ++i) {
-        *ct++ = (mp_uint_t)(uintptr_t)load_raw_code(reader);
+        *ct++ = (mp_uint_t)(uintptr_t)load_raw_code_bytecode(reader);
     }
 
     // create raw_code and return it
@@ -213,15 +219,10 @@ STATIC mp_raw_code_t *load_raw_code_bytecode(mp_reader_t *reader) {
 
 #if MICROPY_PERSISTENT_NATIVE
 mp_raw_code_t *load_raw_code_native(mp_reader_t *reader) {
-    byte header[11];
-    read_bytes(reader, header, 11);
-    if (header[0] != MP_PERSISTENT_ARCH_CURRENT) {
-        nlr_raise(mp_obj_new_exception_msg(&mp_type_ValueError, ".mpy has wrong arch"));
-    }
-    uint num_qstrs = header[1] | (header[2] << 8);
+    uint num_qstrs = read_uint(reader);
 
     // load machine code
-    mp_uint_t len = header[3] | (header[4] << 8);
+    mp_uint_t len = read_uint(reader);
     void *data;
     size_t alloc;
     MP_PLAT_ALLOC_EXEC(len, &data, &alloc);
@@ -236,31 +237,25 @@ mp_raw_code_t *load_raw_code_native(mp_reader_t *reader) {
 }
 #endif
 
-STATIC mp_raw_code_t *load_raw_code(mp_reader_t *reader) {
-    uint code_type = read_byte(reader);
-
-    if (code_type == MP_CODE_BYTECODE) {
-        return load_raw_code_bytecode(reader);
-    #if MICROPY_PERSISTENT_NATIVE
-    } else if (code_type == MP_CODE_PERSISTENT_NATIVE) {
-        return load_raw_code_native(reader);
-    #endif
-    } else {
-        nlr_raise(mp_obj_new_exception_msg(&mp_type_ValueError,
-            "unsupported .mpy feature"));
-    }
-}
-
 mp_raw_code_t *mp_raw_code_load(mp_reader_t *reader) {
     byte header[4];
     read_bytes(reader, header, sizeof(header));
-    if (header[0] != 'M'
-        || header[1] != MPY_VERSION
-        || header[2] != MPY_FEATURE_FLAGS
-        || header[3] > mp_small_int_bits()) {
+    mp_raw_code_t *rc;
+    if (header[0] == 'M'
+        && header[1] == MPY_VERSION
+        && header[2] == MPY_FEATURE_FLAGS_BYTECODE
+        && header[3] <= mp_small_int_bits()) {
+        rc = load_raw_code_bytecode(reader);
+    #if MICROPY_PERSISTENT_NATIVE
+    } else if (header[0] == 'M'
+        && header[1] == MPY_VERSION
+        && header[2] == MPY_FEATURE_FLAGS_NATIVE
+        && header[3] == MP_PERSISTENT_ARCH_CURRENT) {
+        rc = load_raw_code_native(reader);
+    #endif
+    } else {
         mp_raise_ValueError("incompatible .mpy file");
     }
-    mp_raw_code_t *rc = load_raw_code(reader);
     reader->close(reader->data);
     return rc;
 }
@@ -364,9 +359,6 @@ STATIC void save_raw_code(mp_print_t *print, mp_raw_code_t *rc) {
         mp_raise_ValueError("can only save bytecode");
     }
 
-    byte code_type = MP_CODE_BYTECODE;
-    mp_print_bytes(print, &code_type, 1);
-
     // save bytecode
     mp_print_uint(print, rc->data.u_byte.bc_len);
     mp_print_bytes(print, rc->data.u_byte.bytecode, rc->data.u_byte.bc_len);
@@ -404,7 +396,7 @@ void mp_raw_code_save(mp_raw_code_t *rc, mp_print_t *print) {
     //  byte  version
     //  byte  feature flags
     //  byte  number of bits in a small int
-    byte header[4] = {'M', MPY_VERSION, MPY_FEATURE_FLAGS_DYNAMIC,
+    byte header[4] = {'M', MPY_VERSION, MPY_FEATURE_FLAGS_BYTECODE_DYNAMIC,
         #if MICROPY_DYNAMIC_COMPILER
         mp_dynamic_compiler.small_int_bits,
         #else

@@ -52,17 +52,15 @@
 // TODO: consolidate the first 4 bytes here with stuff in persistentcode.c
 #define MP_PERSISTENT_NATIVE_HEADER \
     __attribute__((section(".mpyheader"))) \
-    const byte header[16] = { \
+    const byte header[8] = { \
         'M', \
         2, \
         ((MICROPY_OPT_CACHE_MAP_LOOKUP_IN_BYTECODE) << 0) \
-            | ((MICROPY_PY_BUILTINS_STR_UNICODE) << 1), \
-        16, \
-        MP_CODE_PERSISTENT_NATIVE, \
+            | ((MICROPY_PY_BUILTINS_STR_UNICODE) << 1) \
+            | (1 << 7),  \
         MP_PERSISTENT_ARCH_CURRENT, \
         (MP_LOCAL_QSTR_number_of & 0xff), (MP_LOCAL_QSTR_number_of >> 8), \
-        0, 0, /* size of text section, to be patched later */ \
-        0, 0, 0, 0, 0, 0, /* padding */ \
+        0, 0, /* padding */ \
     };
 
 #define MP_PERSISTENT_NATIVE_INIT \
