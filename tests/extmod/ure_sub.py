@@ -3,6 +3,12 @@ try:
 except ImportError:
     import re
 
+try:
+    re.sub
+except AttributeError:
+    print('SKIP')
+    raise SystemExit
+
 
 def multiply(m):
     return str(int(m.group(0)) * 2)
@@ -27,8 +33,7 @@ print(
     re.compile(
          '(calzino) (blu|bianco|verde) e (scarpa) (blu|bianco|verde)'
     ).sub(
-        r'\g<1> colore \2 con \g<3> colore \4? ...',
+        r'\1 colore \2 con \3 colore \4? ...',
         'calzino blu e scarpa verde'
     )
 )
-
