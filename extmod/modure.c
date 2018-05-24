@@ -40,7 +40,6 @@
 #include "re1.5/re1.5.h"
 
 #define FLAG_DEBUG 0x1000
-#define FLAG_IGNORECASE 0x0100
 
 typedef struct _mp_obj_re_t {
     mp_obj_base_t base;
@@ -86,7 +85,7 @@ STATIC mp_obj_t match_groups(mp_obj_t self_in) {
         return mp_const_empty_tuple;
     }
     mp_obj_tuple_t *groups = MP_OBJ_TO_PTR(mp_obj_new_tuple(self->num_matches - 1, NULL));
-    for (size_t no = 1; no < self->num_matches; no++) {
+    for (ssize_t no = 1; no < self->num_matches; no++) {
         const char *start = self->caps[no * 2];
         if (start == NULL) {
             // no match for this group
@@ -268,8 +267,6 @@ STATIC mp_obj_t ure_exec_sub(mp_obj_re_t *self, mp_obj_t replace, mp_obj_t where
     mp_get_buffer_raise(where, &bufinfo, MP_BUFFER_READ);
     bool debug = (flags & FLAG_DEBUG);
     (void)debug;
-    bool ignorecase = (flags & FLAG_IGNORECASE);
-    (void)ignorecase;
     Subject subj;
     subj.begin = bufinfo.buf;
     subj.end = subj.begin + bufinfo.len;
@@ -314,29 +311,7 @@ STATIC mp_obj_t ure_exec_sub(mp_obj_re_t *self, mp_obj_t replace, mp_obj_t where
                 start_group = repl_p;
                 group = ++repl_p;
 
-                if (*group != 0 && *group == 'g') {
-                    // search group with syntax "\g<number>"
-                    const char *left_angle_bracket = ++group;
-                    if (left_angle_bracket != 0 && *left_angle_bracket == '<') {
-                        const char *value = ++left_angle_bracket;
-                        if (value != 0) {
-                            if (unichar_isalpha(*value)) {
-                                mp_raise_NotImplementedError("group with syntax \"\\g<name>\"");
-                            }
-
-                            int value_l = str_to_int(value, &match_no);
-                            if (match_no == -1) {
-                                nlr_raise(mp_obj_new_exception_msg(&mp_type_RuntimeError, "missing group number"));
-                            }
-
-                            const char *right_angle_bracket = value += value_l;
-                            if (right_angle_bracket != 0 && *right_angle_bracket == '>' && match_no < match->num_matches) {
-                                is_group_number = 1;
-                                end_group = value + 1;
-                            }
-                        }
-                    }
-                } else if (group != 0 && unichar_isdigit(*group)) {
+                if (group != 0 && unichar_isdigit(*group)) {
                     // search group with syntax "\number"
                     const char *value = group;
                     int value_l = str_to_int(value, &match_no);
@@ -496,7 +471,6 @@ STATIC const mp_rom_map_elem_t mp_module_re_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_search), MP_ROM_PTR(&mod_re_search_obj) },
     #if MICROPY_PY_URE_SUB
     { MP_ROM_QSTR(MP_QSTR_sub), MP_ROM_PTR(&mod_re_sub_obj) },
-    { MP_ROM_QSTR(MP_QSTR_IGNORECASE), MP_ROM_INT(FLAG_IGNORECASE) },
     #endif
     { MP_ROM_QSTR(MP_QSTR_DEBUG), MP_ROM_INT(FLAG_DEBUG) },
 };
