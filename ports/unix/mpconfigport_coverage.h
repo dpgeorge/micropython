@@ -47,3 +47,6 @@
 #define MICROPY_VFS_FAT                (1)
 #define MICROPY_PY_FRAMEBUF            (1)
 #define MICROPY_PY_COLLECTIONS_NAMEDTUPLE__ASDICT (1)
+#define MICROPY_PY_URE_SUB          (1)
+#define MICROPY_PY_URE_MATCH_SPAN_START_END (1)
+#define MICROPY_PY_URE_MATCH_GROUPS (1)
