@@ -145,11 +145,11 @@ STATIC int do_load_from_lexer(mp_obj_t module_obj, mp_lexer_t *lex) {
 #endif
 
 #if MICROPY_PERSISTENT_CODE_LOAD || MICROPY_MODULE_FROZEN_MPY
-STATIC int do_execute_raw_code(mp_obj_t module_obj, mp_raw_code_t *raw_code) {
+STATIC int do_execute_raw_code(mp_obj_t module_obj, mp_raw_code_t *raw_code, const char* source_name) {
+    (void)source_name;
+
     #if MICROPY_PY___FILE__
-    // TODO
-    //qstr source_name = lex->source_name;
-    //mp_store_attr(module_obj, MP_QSTR___file__, MP_OBJ_NEW_QSTR(source_name));
+    mp_store_attr(module_obj, MP_QSTR___file__, MP_OBJ_NEW_QSTR(qstr_from_str(source_name)));
     #endif
 
     // execute the module in its context
@@ -198,7 +198,7 @@ STATIC int do_load(mp_obj_t module_obj, vstr_t *file) {
     // its data) in the list of frozen files, execute it.
     #if MICROPY_MODULE_FROZEN_MPY
     if (frozen_type == MP_FROZEN_MPY) {
-        return do_execute_raw_code(module_obj, modref);
+        return do_execute_raw_code(module_obj, modref, file_str);
     }
     #endif
 
@@ -207,10 +207,7 @@ STATIC int do_load(mp_obj_t module_obj, vstr_t *file) {
     #if MICROPY_HAS_FILE_READER && MICROPY_PERSISTENT_CODE_LOAD
     if (file_str[file->len - 3] == 'm') {
         mp_raw_code_t *raw_code = mp_raw_code_load_file(file_str);
-        if (raw_code == NULL) {
-            return 1;
-        }
-        return do_execute_raw_code(module_obj, raw_code);
+        return do_execute_raw_code(module_obj, raw_code, file_str);
     }
     #endif
 
