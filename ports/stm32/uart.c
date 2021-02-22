@@ -40,15 +40,25 @@
 
 #if defined(STM32F4)
 #define UART_RXNE_IS_SET(uart) ((uart)->SR & USART_SR_RXNE)
-#elif defined(STM32H7)
+#elif defined(STM32H7) || defined(STM32WL)
 #define UART_RXNE_IS_SET(uart) ((uart)->ISR & USART_ISR_RXNE_RXFNE)
 #else
 #define UART_RXNE_IS_SET(uart) ((uart)->ISR & USART_ISR_RXNE)
 #endif
+
+#if defined(STM32WL)
+#define UART_RXNE_IT_EN(uart) do { (uart)->CR1 |= USART_CR1_RXNEIE_RXFNEIE; } while (0)
+#define UART_RXNE_IT_DIS(uart) do { (uart)->CR1 &= ~USART_CR1_RXNEIE_RXFNEIE; } while (0)
+#else
 #define UART_RXNE_IT_EN(uart) do { (uart)->CR1 |= USART_CR1_RXNEIE; } while (0)
 #define UART_RXNE_IT_DIS(uart) do { (uart)->CR1 &= ~USART_CR1_RXNEIE; } while (0)
+#endif
 
+#if defined(STM32WL)
+#define USART_CR1_IE_BASE (USART_CR1_PEIE | USART_CR1_TXEIE_TXFNFIE | USART_CR1_TCIE | USART_CR1_RXNEIE_RXFNEIE | USART_CR1_IDLEIE)
+#else
 #define USART_CR1_IE_BASE (USART_CR1_PEIE | USART_CR1_TXEIE | USART_CR1_TCIE | USART_CR1_RXNEIE | USART_CR1_IDLEIE)
+#endif
 #define USART_CR2_IE_BASE (USART_CR2_LBDIE)
 #define USART_CR3_IE_BASE (USART_CR3_CTSIE | USART_CR3_EIE)
 
@@ -81,7 +91,7 @@
 #define USART_CR2_IE_ALL (USART_CR2_IE_BASE)
 #define USART_CR3_IE_ALL (USART_CR3_IE_BASE | USART_CR3_WUFIE)
 
-#elif defined(STM32L4) || defined(STM32WB)
+#elif defined(STM32L4) || defined(STM32WB) || defined(STM32WL)
 #define USART_CR1_IE_ALL (USART_CR1_IE_BASE | USART_CR1_EOBIE | USART_CR1_RTOIE | USART_CR1_CMIE)
 #define USART_CR2_IE_ALL (USART_CR2_IE_BASE)
 #if defined(USART_CR3_TCBGTIE)
@@ -101,9 +111,17 @@ typedef struct _pyb_uart_irq_map_t {
 STATIC const pyb_uart_irq_map_t mp_uart_irq_map[] = {
     { USART_CR1_IDLEIE, UART_FLAG_IDLE}, // RX idle
     { USART_CR1_PEIE,   UART_FLAG_PE},   // parity error
+    #if defined(STM32WL)
+    { USART_CR1_TXEIE_TXFNFIE,  UART_FLAG_TXE},  // TX register empty
+    #else
     { USART_CR1_TXEIE,  UART_FLAG_TXE},  // TX register empty
+    #endif
     { USART_CR1_TCIE,   UART_FLAG_TC},   // TX complete
+    #if defined(STM32WL)
+    { USART_CR1_RXNEIE_RXFNEIE, UART_FLAG_RXNE}, // RX register not empty
+    #else
     { USART_CR1_RXNEIE, UART_FLAG_RXNE}, // RX register not empty
+    #endif
     #if 0
     // For now only IRQs selected by CR1 are supported
     #if defined(STM32F4)
@@ -754,7 +772,7 @@ uint32_t uart_get_baudrate(pyb_uart_obj_t *self) {
 
 void uart_set_baudrate(pyb_uart_obj_t *self, uint32_t baudrate) {
     LL_USART_SetBaudRate(self->uartx, uart_get_source_freq(self),
-        #if defined(STM32H7) || defined(STM32WB)
+        #if defined(STM32H7) || defined(STM32WB) || defined(STM32WL)
         LL_USART_PRESCALER_DIV1,
         #endif
         LL_USART_OVERSAMPLING_16, baudrate);
@@ -805,7 +823,7 @@ int uart_rx_char(pyb_uart_obj_t *self) {
         return data;
     } else {
         // no buffering
-        #if defined(STM32F0) || defined(STM32F7) || defined(STM32L0) || defined(STM32L4) || defined(STM32H7) || defined(STM32WB)
+        #if defined(STM32F0) || defined(STM32F7) || defined(STM32L0) || defined(STM32L4) || defined(STM32H7) || defined(STM32WB) || defined(STM32WL)
         int data = self->uartx->RDR & self->char_mask;
         self->uartx->ICR = USART_ICR_ORECF; // clear ORE if it was set
         return data;
@@ -931,7 +949,7 @@ void uart_irq_handler(mp_uint_t uart_id) {
             uint16_t next_head = (self->read_buf_head + 1) % self->read_buf_len;
             if (next_head != self->read_buf_tail) {
                 // only read data if room in buf
-                #if defined(STM32F0) || defined(STM32F7) || defined(STM32L0) || defined(STM32L4) || defined(STM32H7) || defined(STM32WB)
+                #if defined(STM32F0) || defined(STM32F7) || defined(STM32L0) || defined(STM32L4) || defined(STM32H7) || defined(STM32WB) || defined(STM32WL)
                 int data = self->uartx->RDR; // clears UART_FLAG_RXNE
                 self->uartx->ICR = USART_ICR_ORECF; // clear ORE if it was set
                 #else

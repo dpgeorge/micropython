@@ -70,7 +70,7 @@ typedef union {
 struct _dma_descr_t {
     #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
     DMA_Stream_TypeDef *instance;
-    #elif defined(STM32F0) || defined(STM32L0) || defined(STM32L4) || defined(STM32WB)
+    #elif defined(STM32F0) || defined(STM32L0) || defined(STM32L4) || defined(STM32WB) || defined(STM32WL)
     DMA_Channel_TypeDef *instance;
     #else
     #error "Unsupported Processor"
@@ -85,7 +85,7 @@ struct _dma_descr_t {
 static const DMA_InitTypeDef dma_init_struct_spi_i2c = {
     #if defined(STM32F4) || defined(STM32F7)
     .Channel = 0,
-    #elif defined(STM32H7) || defined(STM32L0) || defined(STM32L4) || defined(STM32WB)
+    #elif defined(STM32H7) || defined(STM32L0) || defined(STM32L4) || defined(STM32WB) || defined(STM32WL)
     .Request = 0,
     #endif
     .Direction = 0,
@@ -426,7 +426,7 @@ static const uint8_t dma_irqn[NSTREAM] = {
     DMA2_Channel7_IRQn,
 };
 
-#elif defined(STM32WB)
+#elif defined(STM32WB) || defined(STM32WL)
 
 #define NCONTROLLERS            (2)
 #define NSTREAMS_PER_CONTROLLER (7)
@@ -906,7 +906,7 @@ void dma_init_handle(DMA_HandleTypeDef *dma, const dma_descr_t *dma_descr, uint3
     dma->Instance = dma_descr->instance;
     dma->Init = *dma_descr->init;
     dma->Init.Direction = dir;
-    #if defined(STM32L0) || defined(STM32L4) || defined(STM32H7) || defined(STM32WB)
+    #if defined(STM32L0) || defined(STM32L4) || defined(STM32H7) || defined(STM32WB) || defined(STM32WL)
     dma->Init.Request = dma_descr->sub_instance;
     #else
     #if !defined(STM32F0)
@@ -933,7 +933,7 @@ void dma_init(DMA_HandleTypeDef *dma, const dma_descr_t *dma_descr, uint32_t dir
 
         dma_enable_clock(dma_id);
 
-        #if defined(STM32H7) || defined(STM32L0) || defined(STM32L4) || defined(STM32WB)
+        #if defined(STM32H7) || defined(STM32L0) || defined(STM32L4) || defined(STM32WB) || defined(STM32WL)
         // Always reset and configure the H7 and L0/L4 DMA peripheral
         // (dma->State is set to HAL_DMA_STATE_RESET by memset above)
         // TODO: understand how L0/L4 DMA works so this is not needed
@@ -1091,7 +1091,7 @@ void dma_nohal_start(const dma_descr_t *descr, uint32_t src_addr, uint32_t dst_a
     dma->CCR |= DMA_CCR_EN;
 }
 
-#elif defined(STM32WB)
+#elif defined(STM32WB) || defined(STM32WL)
 
 // These functions are currently not implemented or needed for this MCU.
 

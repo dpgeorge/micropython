@@ -292,6 +292,16 @@
 #define MICROPY_HW_RFCORE_BLE_LL_ONLY                   (1) // use LL only, we provide the rest of the BLE stack
 #endif
 
+// Configuration for STM32WL series
+#elif defined(STM32WL)
+
+#define MP_HAL_UNIQUE_ID_ADDRESS (UID_BASE)
+#define PYB_EXTI_NUM_VECTORS (23) // TODO
+#define MICROPY_HW_MAX_I2C (3) // TODO
+#define MICROPY_HW_MAX_TIMER (17) // TODO
+#define MICROPY_HW_MAX_UART (1) // TODO
+#define MICROPY_HW_MAX_LPUART (1) // TODO
+
 #else
 #error Unsupported MCU series
 #endif

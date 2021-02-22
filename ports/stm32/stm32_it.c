@@ -527,7 +527,11 @@ void TAMP_STAMP_IRQHandler(void) {
 
 void RTC_WKUP_IRQHandler(void) {
     IRQ_ENTER(RTC_WKUP_IRQn);
+    #if defined(STM32WL)
+    RTC->SCR = RTC_SCR_CWUTF; // TODO
+    #else
     RTC->ISR &= ~RTC_ISR_WUTF; // clear wakeup interrupt flag
+    #endif
     Handle_EXTI_Irq(EXTI_RTC_WAKEUP); // clear EXTI flag and execute optional callback
     IRQ_EXIT(RTC_WKUP_IRQn);
 }
