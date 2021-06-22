@@ -109,6 +109,21 @@ STATIC const machine_pin_obj_t machine_pin_obj[] = {
     {{&machine_pin_type}, GPIO_NUM_5},
     {{&machine_pin_type}, GPIO_NUM_6},
     {{&machine_pin_type}, GPIO_NUM_7},
+    {{&machine_pin_type}, GPIO_NUM_8},
+    {{&machine_pin_type}, GPIO_NUM_9},
+    {{&machine_pin_type}, GPIO_NUM_10},
+    {{&machine_pin_type}, GPIO_NUM_11},
+    {{&machine_pin_type}, GPIO_NUM_12},
+    {{&machine_pin_type}, GPIO_NUM_13},
+    {{&machine_pin_type}, GPIO_NUM_14},
+    {{&machine_pin_type}, GPIO_NUM_15},
+    {{&machine_pin_type}, GPIO_NUM_16},
+    {{&machine_pin_type}, GPIO_NUM_17},
+    {{&machine_pin_type}, GPIO_NUM_18},
+    {{&machine_pin_type}, GPIO_NUM_19},
+    {{&machine_pin_type}, GPIO_NUM_20},
+    {{&machine_pin_type}, GPIO_NUM_21},
+    {{&machine_pin_type}, GPIO_NUM_22},
 
     #elif CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
 
@@ -517,6 +532,21 @@ STATIC const machine_pin_irq_obj_t machine_pin_irq_object[] = {
     {{&machine_pin_irq_type}, GPIO_NUM_5},
     {{&machine_pin_irq_type}, GPIO_NUM_6},
     {{&machine_pin_irq_type}, GPIO_NUM_7},
+    {{&machine_pin_irq_type}, GPIO_NUM_8},
+    {{&machine_pin_irq_type}, GPIO_NUM_9},
+    {{&machine_pin_irq_type}, GPIO_NUM_10},
+    {{&machine_pin_irq_type}, GPIO_NUM_11},
+    {{&machine_pin_irq_type}, GPIO_NUM_12},
+    {{&machine_pin_irq_type}, GPIO_NUM_13},
+    {{&machine_pin_irq_type}, GPIO_NUM_14},
+    {{&machine_pin_irq_type}, GPIO_NUM_15},
+    {{&machine_pin_irq_type}, GPIO_NUM_16},
+    {{&machine_pin_irq_type}, GPIO_NUM_17},
+    {{&machine_pin_irq_type}, GPIO_NUM_18},
+    {{&machine_pin_irq_type}, GPIO_NUM_19},
+    {{&machine_pin_irq_type}, GPIO_NUM_20},
+    {{&machine_pin_irq_type}, GPIO_NUM_21},
+    {{&machine_pin_irq_type}, GPIO_NUM_22},
 
     #elif CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
 

@@ -52,7 +52,8 @@ uint32_t mp_hal_ticks_us(void);
 __attribute__((always_inline)) static inline uint32_t mp_hal_ticks_cpu(void) {
     uint32_t ccount;
     #if CONFIG_IDF_TARGET_ESP32C3
-    ccount = 0; // TODO
+    //ccount = 0; // TODO
+    __asm__ __volatile__ ("rdcycle %0" : "=r" (ccount));
     #else
     __asm__ __volatile__ ("rsr %0,ccount" : "=a" (ccount));
     #endif
