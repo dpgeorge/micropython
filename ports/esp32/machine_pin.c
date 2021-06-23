@@ -40,6 +40,10 @@
 #include "machine_rtc.h"
 #include "modesp32.h"
 
+#if CONFIG_IDF_TARGET_ESP32C3
+#include "hal/gpio_ll.h"
+#endif
+
 // Used to implement a range of pull capabilities
 #define GPIO_PULL_DOWN (1)
 #define GPIO_PULL_UP   (2)
@@ -123,7 +127,6 @@ STATIC const machine_pin_obj_t machine_pin_obj[] = {
     {{&machine_pin_type}, GPIO_NUM_19},
     {{&machine_pin_type}, GPIO_NUM_20},
     {{&machine_pin_type}, GPIO_NUM_21},
-    {{&machine_pin_type}, GPIO_NUM_22},
 
     #elif CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
 
@@ -244,6 +247,12 @@ STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_
             #endif
         }
     }
+
+    #if CONFIG_IDF_TARGET_ESP32C3
+    if (self->id == 18 || self->id == 19) {
+        CLEAR_PERI_REG_MASK(USB_DEVICE_CONF0_REG, USB_DEVICE_USB_PAD_ENABLE);
+    }
+    #endif
 
     // configure the pin for gpio
     gpio_pad_select_gpio(self->id);
@@ -546,7 +555,6 @@ STATIC const machine_pin_irq_obj_t machine_pin_irq_object[] = {
     {{&machine_pin_irq_type}, GPIO_NUM_19},
     {{&machine_pin_irq_type}, GPIO_NUM_20},
     {{&machine_pin_irq_type}, GPIO_NUM_21},
-    {{&machine_pin_irq_type}, GPIO_NUM_22},
 
     #elif CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
 
