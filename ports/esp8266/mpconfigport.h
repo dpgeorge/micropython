@@ -85,6 +85,7 @@
 #define MICROPY_PY_MACHINE_PWM      (1)
 #define MICROPY_PY_MACHINE_PWM_INIT (1)
 #define MICROPY_PY_MACHINE_PWM_DUTY (1)
+#define MICROPY_PY_MACHINE_PWM_INCLUDEFILE "ports/esp8266/machine_pwm.c"
 #define MICROPY_PY_UWEBSOCKET       (1)
 #define MICROPY_PY_WEBREPL          (1)
 #define MICROPY_PY_WEBREPL_DELAY    (20)

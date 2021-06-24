@@ -85,7 +85,6 @@ set(MICROPY_SOURCE_PORT
     machine_adc.c
     machine_i2c.c
     machine_pin.c
-    machine_pwm.c
     machine_rtc.c
     machine_spi.c
     machine_timer.c

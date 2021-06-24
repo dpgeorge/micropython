@@ -29,6 +29,10 @@
 
 #if MICROPY_PY_MACHINE_PWM
 
+#ifdef MICROPY_PY_MACHINE_PWM_INCLUDEFILE
+#include MICROPY_PY_MACHINE_PWM_INCLUDEFILE
+#endif
+
 #if MICROPY_PY_MACHINE_PWM_INIT
 STATIC mp_obj_t machine_pwm_init(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
     pwmx_init_helper(args[0], n_args - 1, args + 1, kw_args);

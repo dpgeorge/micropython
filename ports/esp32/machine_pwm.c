@@ -108,7 +108,7 @@ typedef struct _machine_pwm_obj_t {
     uint8_t channel;
 } machine_pwm_obj_t;
 
-void machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
+STATIC void machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     machine_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
     mp_printf(print, "PWM(%u", self->pin);
     if (self->active) {
@@ -118,7 +118,7 @@ void machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_
     mp_printf(print, ")");
 }
 
-void pwmx_init_helper(machine_pwm_obj_t *self,
+STATIC void pwmx_init_helper(machine_pwm_obj_t *self,
     size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     enum { ARG_freq, ARG_duty };
     static const mp_arg_t allowed_args[] = {
@@ -187,7 +187,7 @@ void pwmx_init_helper(machine_pwm_obj_t *self,
     }
 }
 
-mp_obj_t machine_pwm_make_new(const mp_obj_type_t *type,
+STATIC mp_obj_t machine_pwm_make_new(const mp_obj_type_t *type,
     size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 1, MP_OBJ_FUN_ARGS_MAX, true);
     gpio_num_t pin_id = machine_pin_get_id(args[0]);
@@ -213,7 +213,7 @@ mp_obj_t machine_pwm_make_new(const mp_obj_type_t *type,
     return MP_OBJ_FROM_PTR(self);
 }
 
-void pwmx_deinit(machine_pwm_obj_t *self) {
+STATIC void pwmx_deinit(machine_pwm_obj_t *self) {
     int chan = self->channel;
 
     // Valid channel?
@@ -227,23 +227,23 @@ void pwmx_deinit(machine_pwm_obj_t *self) {
     }
 }
 
-mp_obj_t pwmx_freq_get(machine_pwm_obj_t *self) {
+STATIC mp_obj_t pwmx_freq_get(machine_pwm_obj_t *self) {
     return MP_OBJ_NEW_SMALL_INT(timer_cfg.freq_hz);
 }
 
-void pwmx_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
+STATIC void pwmx_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
     if (!set_freq(freq)) {
         mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("bad frequency %d"), freq);
     }
 }
 
-mp_obj_t pwmx_duty_get(machine_pwm_obj_t *self) {
+STATIC mp_obj_t pwmx_duty_get(machine_pwm_obj_t *self) {
     int duty = ledc_get_duty(PWMODE, self->channel);
     duty <<= PWRES - timer_cfg.duty_resolution;
     return MP_OBJ_NEW_SMALL_INT(duty);
 }
 
-void pwmx_duty_set(machine_pwm_obj_t *self, mp_int_t duty) {
+STATIC void pwmx_duty_set(machine_pwm_obj_t *self, mp_int_t duty) {
     duty &= ((1 << PWRES) - 1);
     duty >>= PWRES - timer_cfg.duty_resolution;
     ledc_set_duty(PWMODE, self->channel, duty);

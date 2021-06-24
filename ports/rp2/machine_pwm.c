@@ -59,13 +59,13 @@ STATIC machine_pwm_obj_t machine_pwm_obj[] = {
     {{&machine_pwm_type}, 7, PWM_CHAN_B},
 };
 
-void machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
+STATIC void machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     machine_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
     mp_printf(print, "<PWM slice=%u channel=%u>", self->slice, self->channel);
 }
 
 // PWM(pin)
-mp_obj_t machine_pwm_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
+STATIC mp_obj_t machine_pwm_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
     // Check number of arguments
     mp_arg_check_num(n_args, n_kw, 1, 1, false);
 
@@ -83,11 +83,11 @@ mp_obj_t machine_pwm_make_new(const mp_obj_type_t *type, size_t n_args, size_t n
     return MP_OBJ_FROM_PTR(self);
 }
 
-void pwmx_deinit(machine_pwm_obj_t *self) {
+static inline void pwmx_deinit(machine_pwm_obj_t *self) {
     pwm_set_enabled(self->slice, false);
 }
 
-mp_obj_t pwmx_freq_get(machine_pwm_obj_t *self) {
+static inline mp_obj_t pwmx_freq_get(machine_pwm_obj_t *self) {
     uint32_t source_hz = clock_get_hz(clk_sys);
     uint32_t div16 = pwm_hw->slice[self->slice].div;
     uint32_t top = pwm_hw->slice[self->slice].top;
@@ -95,7 +95,7 @@ mp_obj_t pwmx_freq_get(machine_pwm_obj_t *self) {
     return MP_OBJ_NEW_SMALL_INT(pwm_freq);
 }
 
-void pwmx_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
+static inline void pwmx_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
     // Set the frequency, making "top" as large as possible for maximum resolution.
     // Maximum "top" is set at 65534 to be able to achieve 100% duty with 65535.
     #define TOP_MAX 65534
@@ -126,21 +126,21 @@ void pwmx_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
     pwm_hw->slice[self->slice].top = top;
 }
 
-mp_obj_t pwmx_duty_get_u16(machine_pwm_obj_t *self) {
+static inline mp_obj_t pwmx_duty_get_u16(machine_pwm_obj_t *self) {
     uint32_t top = pwm_hw->slice[self->slice].top;
     uint32_t cc = pwm_hw->slice[self->slice].cc;
     cc = (cc >> (self->channel ? PWM_CH0_CC_B_LSB : PWM_CH0_CC_A_LSB)) & 0xffff;
     return MP_OBJ_NEW_SMALL_INT(cc * 65535 / (top + 1));
 }
 
-void pwmx_duty_set_u16(machine_pwm_obj_t *self, mp_int_t duty_u16) {
+static inline void pwmx_duty_set_u16(machine_pwm_obj_t *self, mp_int_t duty_u16) {
     uint32_t top = pwm_hw->slice[self->slice].top;
     uint32_t cc = duty_u16 * (top + 1) / 65535;
     pwm_set_chan_level(self->slice, self->channel, cc);
     pwm_set_enabled(self->slice, true);
 }
 
-mp_obj_t pwmx_duty_get_ns(machine_pwm_obj_t *self) {
+static inline mp_obj_t pwmx_duty_get_ns(machine_pwm_obj_t *self) {
     uint32_t source_hz = clock_get_hz(clk_sys);
     uint32_t slice_hz = 16 * source_hz / pwm_hw->slice[self->slice].div;
     uint32_t cc = pwm_hw->slice[self->slice].cc;
@@ -148,7 +148,7 @@ mp_obj_t pwmx_duty_get_ns(machine_pwm_obj_t *self) {
     return MP_OBJ_NEW_SMALL_INT((uint64_t)cc * 1000000000ULL / slice_hz);
 }
 
-void pwmx_duty_set_ns(machine_pwm_obj_t *self, mp_int_t duty_ns) {
+static inline void pwmx_duty_set_ns(machine_pwm_obj_t *self, mp_int_t duty_ns) {
     uint32_t source_hz = clock_get_hz(clk_sys);
     uint32_t slice_hz = 16 * source_hz / pwm_hw->slice[self->slice].div;
     uint32_t cc = (uint64_t)duty_ns * slice_hz / 1000000000ULL;

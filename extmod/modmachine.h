@@ -36,6 +36,7 @@ typedef struct _machine_pwm_obj_t machine_pwm_obj_t;
 
 extern const mp_obj_type_t machine_pwm_type;
 
+#ifndef MICROPY_PY_MACHINE_PWM_INCLUDEFILE
 // A port must provide implementations of these functions.
 // TODO: rename pwmx to something else, like mp_hal_pwm or machine_pwm
 void machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind);
@@ -50,6 +51,7 @@ mp_obj_t pwmx_duty_get_u16(machine_pwm_obj_t *self);
 void pwmx_duty_set_u16(machine_pwm_obj_t *self, mp_int_t duty_u16);
 mp_obj_t pwmx_duty_get_ns(machine_pwm_obj_t *self);
 void pwmx_duty_set_ns(machine_pwm_obj_t *self, mp_int_t duty_ns);
+#endif
 
 #endif // MICROPY_PY_MACHINE_PWM
 
