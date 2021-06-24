@@ -27,6 +27,8 @@
 #ifndef MICROPY_INCLUDED_EXTMOD_MODMACHINE_H
 #define MICROPY_INCLUDED_EXTMOD_MODMACHINE_H
 
+#include "py/obj.h"
+
 #if MICROPY_PY_MACHINE_PWM
 
 // A port must provide this type, but it's otherwise opaque.
