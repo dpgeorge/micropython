@@ -1,10 +1,9 @@
 #ifndef MICROPY_INCLUDED_ESP8266_MODMACHINE_H
 #define MICROPY_INCLUDED_ESP8266_MODMACHINE_H
 
-#include "py/obj.h"
+#include "extmod/modmachine.h"
 
 extern const mp_obj_type_t pyb_pin_type;
-extern const mp_obj_type_t pyb_pwm_type;
 extern const mp_obj_type_t machine_adc_type;
 extern const mp_obj_type_t pyb_rtc_type;
 extern const mp_obj_type_t pyb_uart_type;

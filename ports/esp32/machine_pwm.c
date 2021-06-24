@@ -23,24 +23,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <stdio.h>
+
+#include "py/runtime.h"
+#include "py/mphal.h"
+#include "modmachine.h"
+
 #include "driver/ledc.h"
 #include "esp_err.h"
-
-#include "py/nlr.h"
-#include "py/runtime.h"
-#include "modmachine.h"
-#include "mphalport.h"
-
-// Forward dec'l
-extern const mp_obj_type_t machine_pwm_type;
-
-typedef struct _esp32_pwm_obj_t {
-    mp_obj_base_t base;
-    gpio_num_t pin;
-    uint8_t active;
-    uint8_t channel;
-} esp32_pwm_obj_t;
 
 // Which channel has which GPIO pin assigned?
 // (-1 if not assigned)
@@ -110,11 +99,17 @@ STATIC int set_freq(int newval) {
 }
 
 /******************************************************************************/
-
 // MicroPython bindings for PWM
 
-STATIC void esp32_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
-    esp32_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
+typedef struct _machine_pwm_obj_t {
+    mp_obj_base_t base;
+    gpio_num_t pin;
+    uint8_t active;
+    uint8_t channel;
+} machine_pwm_obj_t;
+
+void machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
+    machine_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
     mp_printf(print, "PWM(%u", self->pin);
     if (self->active) {
         mp_printf(print, ", freq=%u, duty=%u", timer_cfg.freq_hz,
@@ -123,7 +118,7 @@ STATIC void esp32_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_
     mp_printf(print, ")");
 }
 
-STATIC void esp32_pwm_init_helper(esp32_pwm_obj_t *self,
+void pwmx_init_helper(machine_pwm_obj_t *self,
     size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     enum { ARG_freq, ARG_duty };
     static const mp_arg_t allowed_args[] = {
@@ -192,13 +187,13 @@ STATIC void esp32_pwm_init_helper(esp32_pwm_obj_t *self,
     }
 }
 
-STATIC mp_obj_t esp32_pwm_make_new(const mp_obj_type_t *type,
+mp_obj_t machine_pwm_make_new(const mp_obj_type_t *type,
     size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 1, MP_OBJ_FUN_ARGS_MAX, true);
     gpio_num_t pin_id = machine_pin_get_id(args[0]);
 
     // create PWM object from the given pin
-    esp32_pwm_obj_t *self = m_new_obj(esp32_pwm_obj_t);
+    machine_pwm_obj_t *self = m_new_obj(machine_pwm_obj_t);
     self->base.type = &machine_pwm_type;
     self->pin = pin_id;
     self->active = 0;
@@ -213,20 +208,12 @@ STATIC mp_obj_t esp32_pwm_make_new(const mp_obj_type_t *type,
     // start the PWM running for this channel
     mp_map_t kw_args;
     mp_map_init_fixed_table(&kw_args, n_kw, args + n_args);
-    esp32_pwm_init_helper(self, n_args - 1, args + 1, &kw_args);
+    pwmx_init_helper(self, n_args - 1, args + 1, &kw_args);
 
     return MP_OBJ_FROM_PTR(self);
 }
 
-STATIC mp_obj_t esp32_pwm_init(size_t n_args,
-    const mp_obj_t *args, mp_map_t *kw_args) {
-    esp32_pwm_init_helper(args[0], n_args - 1, args + 1, kw_args);
-    return mp_const_none;
-}
-MP_DEFINE_CONST_FUN_OBJ_KW(esp32_pwm_init_obj, 1, esp32_pwm_init);
-
-STATIC mp_obj_t esp32_pwm_deinit(mp_obj_t self_in) {
-    esp32_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
+void pwmx_deinit(machine_pwm_obj_t *self) {
     int chan = self->channel;
 
     // Valid channel?
@@ -238,63 +225,27 @@ STATIC mp_obj_t esp32_pwm_deinit(mp_obj_t self_in) {
         self->channel = -1;
         gpio_matrix_out(self->pin, SIG_GPIO_OUT_IDX, false, false);
     }
-    return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(esp32_pwm_deinit_obj, esp32_pwm_deinit);
-
-STATIC mp_obj_t esp32_pwm_freq(size_t n_args, const mp_obj_t *args) {
-    if (n_args == 1) {
-        // get
-        return MP_OBJ_NEW_SMALL_INT(timer_cfg.freq_hz);
-    }
-
-    // set
-    int tval = mp_obj_get_int(args[1]);
-    if (!set_freq(tval)) {
-        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("bad frequency %d"), tval);
-    }
-    return mp_const_none;
 }
 
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp32_pwm_freq_obj, 1, 2, esp32_pwm_freq);
+mp_obj_t pwmx_freq_get(machine_pwm_obj_t *self) {
+    return MP_OBJ_NEW_SMALL_INT(timer_cfg.freq_hz);
+}
 
-STATIC mp_obj_t esp32_pwm_duty(size_t n_args, const mp_obj_t *args) {
-    esp32_pwm_obj_t *self = MP_OBJ_TO_PTR(args[0]);
-    int duty;
-
-    if (n_args == 1) {
-        // get
-        duty = ledc_get_duty(PWMODE, self->channel);
-        duty <<= PWRES - timer_cfg.duty_resolution;
-        return MP_OBJ_NEW_SMALL_INT(duty);
+void pwmx_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
+    if (!set_freq(freq)) {
+        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("bad frequency %d"), freq);
     }
+}
 
-    // set
-    duty = mp_obj_get_int(args[1]);
+mp_obj_t pwmx_duty_get(machine_pwm_obj_t *self) {
+    int duty = ledc_get_duty(PWMODE, self->channel);
+    duty <<= PWRES - timer_cfg.duty_resolution;
+    return MP_OBJ_NEW_SMALL_INT(duty);
+}
+
+void pwmx_duty_set(machine_pwm_obj_t *self, mp_int_t duty) {
     duty &= ((1 << PWRES) - 1);
     duty >>= PWRES - timer_cfg.duty_resolution;
     ledc_set_duty(PWMODE, self->channel, duty);
     ledc_update_duty(PWMODE, self->channel);
-
-    return mp_const_none;
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp32_pwm_duty_obj,
-    1, 2, esp32_pwm_duty);
-
-STATIC const mp_rom_map_elem_t esp32_pwm_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&esp32_pwm_init_obj) },
-    { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&esp32_pwm_deinit_obj) },
-    { MP_ROM_QSTR(MP_QSTR_freq), MP_ROM_PTR(&esp32_pwm_freq_obj) },
-    { MP_ROM_QSTR(MP_QSTR_duty), MP_ROM_PTR(&esp32_pwm_duty_obj) },
-};
-
-STATIC MP_DEFINE_CONST_DICT(esp32_pwm_locals_dict,
-    esp32_pwm_locals_dict_table);
-
-const mp_obj_type_t machine_pwm_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_PWM,
-    .print = esp32_pwm_print,
-    .make_new = esp32_pwm_make_new,
-    .locals_dict = (mp_obj_dict_t *)&esp32_pwm_locals_dict,
-};
