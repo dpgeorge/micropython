@@ -20,7 +20,9 @@
 
 // emitters
 #define MICROPY_PERSISTENT_CODE_LOAD        (1)
+#if !CONFIG_IDF_TARGET_ESP32C3
 #define MICROPY_EMIT_XTENSAWIN              (1)
+#endif
 
 // compiler configuration
 #define MICROPY_COMP_MODULE_CONST           (1)
