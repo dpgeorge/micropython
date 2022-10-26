@@ -1,6 +1,6 @@
 include ../../py/mkenv.mk
 
-CROSS = 0
+CROSS = 1
 
 # qstr definitions (must come before including py.mk)
 QSTR_DEFS = qstrdefsport.h
@@ -30,6 +30,9 @@ LD = $(CC)
 CFLAGS += $(INC) -Wall -Werror -Wdouble-promotion -Wfloat-conversion -std=c99 $(COPT)
 LDFLAGS += -Wl,-Map=$@.map,--cref -Wl,--gc-sections
 endif
+CFLAGS += -I$(TOP)/lib/cmsis/inc
+CFLAGS += -I$(HOME)/others/AmbiqSuite_R4.3.0/CMSIS/AmbiqMicro/Include
+CFLAGS += -I$(HOME)/others/AmbiqSuite_R4.3.0/mcu/apollo4p
 
 CSUPEROPT = -Os # save some code space
 
@@ -60,6 +63,11 @@ ifeq ($(CROSS), 1)
 SRC_C += shared/libc/string0.c
 endif
 
+SRC_C += $(HOME)/others/AmbiqSuite_R4.3.0/mcu/apollo4p/hal/am_hal_pwrctrl.c
+SRC_C += $(HOME)/others/AmbiqSuite_R4.3.0/mcu/apollo4p/hal/mcu/am_hal_utils.c
+SRC_C += $(HOME)/others/AmbiqSuite_R4.3.0/mcu/apollo4p/hal/mcu/am_hal_bootrom_helper.c
+SRC_C += $(HOME)/others/AmbiqSuite_R4.3.0/mcu/apollo4p/hal/mcu/am_hal_interrupt.c
+
 SRC_QSTR += shared/readline/readline.c shared/runtime/pyexec.c
 
 OBJ += $(PY_CORE_O)
@@ -84,6 +92,9 @@ $(BUILD)/firmware.elf: $(OBJ)
 $(BUILD)/firmware.bin: $(BUILD)/firmware.elf
 	$(Q)$(OBJCOPY) -O binary -j .isr_vector -j .text -j .data $^ $(BUILD)/firmware.bin
 
+$(BUILD)/firmware.hex: $(BUILD)/firmware.elf
+	$(Q)$(OBJCOPY) -O ihex $^ $@
+
 $(BUILD)/firmware.dfu: $(BUILD)/firmware.bin
 	$(ECHO) "Create $@"
 	$(Q)$(PYTHON) $(DFU) -b 0x08000000:$(BUILD)/firmware.bin $@
@@ -91,6 +102,21 @@ $(BUILD)/firmware.dfu: $(BUILD)/firmware.bin
 deploy: $(BUILD)/firmware.dfu
 	$(ECHO) "Writing $< to the board"
 	$(Q)$(PYTHON) $(PYDFU) -u $<
+
+JLINK_EXE ?= $(HOME)/others/JLink_Linux_V754c_x86_64/JLinkExe
+JLINK_DEV ?= AMAP42KK-KBR
+JLINK_CMD = '\
+ExitOnError 1\n\
+Device $(JLINK_DEV)\n\
+SelectInterface SWD\n\
+Speed auto\n\
+Connect\n\
+Reset\n\
+LoadFile "$(BUILD)/firmware.hex"\n\
+Exit'
+
+deploy-jlink: $(BUILD)/firmware.hex
+	$(Q)echo -e $(JLINK_CMD) | $(JLINK_EXE)
 
 # Run emulation build on a POSIX system with suitable terminal settings
 run:
