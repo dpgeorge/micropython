@@ -1,0 +1,15 @@
+{
+    "deploy": [
+        "../deploy.md"
+    ],
+    "docs": "",
+    "features": [],
+    "images": [
+        "nucleo_f207zg.jpg"
+    ],
+    "mcu": "stm32f2",
+    "product": "Nucleo F207ZG",
+    "thumbnail": "",
+    "url": "",
+    "vendor": "ST Microelectronics"
+}
