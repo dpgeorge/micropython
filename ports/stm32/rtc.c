@@ -509,8 +509,10 @@ uint64_t mp_hal_time_ns(void) {
     HAL_RTC_GetDate(&RTCHandle, &date, RTC_FORMAT_BIN);
     ns = timeutils_seconds_since_epoch(2000 + date.Year, date.Month, date.Date, time.Hours, time.Minutes, time.Seconds);
     ns *= 1000000000ULL;
+    #if !defined(STM32F2)
     uint32_t usec = ((RTC_SYNCH_PREDIV - time.SubSeconds) * (1000000 / 64)) / ((RTC_SYNCH_PREDIV + 1) / 64);
     ns += usec * 1000;
+    #endif
     #endif
     return ns;
 }
@@ -602,7 +604,11 @@ mp_obj_t pyb_rtc_datetime(size_t n_args, const mp_obj_t *args) {
             mp_obj_new_int(time.Hours),
             mp_obj_new_int(time.Minutes),
             mp_obj_new_int(time.Seconds),
+            #if defined(STM32F2)
+            0,
+            #else
             mp_obj_new_int(rtc_subsec_to_us(time.SubSeconds)),
+            #endif
         };
         return mp_obj_new_tuple(8, tuple);
     } else {
@@ -794,6 +800,7 @@ mp_obj_t pyb_rtc_wakeup(size_t n_args, const mp_obj_t *args) {
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(pyb_rtc_wakeup_obj, 2, 4, pyb_rtc_wakeup);
 
+#if !defined(STM32F2)
 // calibration(None)
 // calibration(cal)
 // When an integer argument is provided, check that it falls in the range [-511 to 512]
@@ -844,13 +851,16 @@ mp_obj_t pyb_rtc_calibration(size_t n_args, const mp_obj_t *args) {
     }
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(pyb_rtc_calibration_obj, 1, 2, pyb_rtc_calibration);
+#endif
 
 STATIC const mp_rom_map_elem_t pyb_rtc_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&pyb_rtc_init_obj) },
     { MP_ROM_QSTR(MP_QSTR_info), MP_ROM_PTR(&pyb_rtc_info_obj) },
     { MP_ROM_QSTR(MP_QSTR_datetime), MP_ROM_PTR(&pyb_rtc_datetime_obj) },
     { MP_ROM_QSTR(MP_QSTR_wakeup), MP_ROM_PTR(&pyb_rtc_wakeup_obj) },
+    #if !defined(STM32F2)
     { MP_ROM_QSTR(MP_QSTR_calibration), MP_ROM_PTR(&pyb_rtc_calibration_obj) },
+    #endif
 };
 STATIC MP_DEFINE_CONST_DICT(pyb_rtc_locals_dict, pyb_rtc_locals_dict_table);
 

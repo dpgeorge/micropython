@@ -78,7 +78,7 @@ typedef union {
 } dma_idle_count_t;
 
 struct _dma_descr_t {
-    #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
+    #if defined(STM32F2) || defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
     DMA_Stream_TypeDef *instance;
     #elif defined(STM32F0) || defined(STM32G0) || defined(STM32G4) || defined(STM32L0) || defined(STM32L1) || defined(STM32L4) || defined(STM32WB) || defined(STM32WL)
     DMA_Channel_TypeDef *instance;
@@ -93,7 +93,7 @@ struct _dma_descr_t {
 // Default parameters to dma_init() shared by spi and i2c; Channel and Direction
 // vary depending on the peripheral instance so they get passed separately
 static const DMA_InitTypeDef dma_init_struct_spi_i2c = {
-    #if defined(STM32F4) || defined(STM32F7)
+    #if defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
     .Channel = 0,
     #elif defined(STM32G0) || defined(STM32G4) || defined(STM32H7) || defined(STM32L0) || defined(STM32L4) || defined(STM32WB) || defined(STM32WL)
     .Request = 0,
@@ -105,7 +105,7 @@ static const DMA_InitTypeDef dma_init_struct_spi_i2c = {
     .MemDataAlignment = DMA_MDATAALIGN_BYTE,
     .Mode = DMA_NORMAL,
     .Priority = DMA_PRIORITY_LOW,
-    #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
+    #if defined(STM32F2) || defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
     .FIFOMode = DMA_FIFOMODE_DISABLE,
     .FIFOThreshold = DMA_FIFO_THRESHOLD_FULL,
     .MemBurst = DMA_MBURST_INC4,
@@ -117,7 +117,7 @@ static const DMA_InitTypeDef dma_init_struct_spi_i2c = {
 // Default parameters to dma_init() for i2s; Channel and Direction
 // vary depending on the peripheral instance so they get passed separately
 static const DMA_InitTypeDef dma_init_struct_i2s = {
-    #if defined(STM32F4) || defined(STM32F7)
+    #if defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
     .Channel = 0,
     #elif defined(STM32G0) || defined(STM32H7) || defined(STM32L0) || defined(STM32L4)
     .Request = 0,
@@ -129,7 +129,7 @@ static const DMA_InitTypeDef dma_init_struct_i2s = {
     .MemDataAlignment = DMA_MDATAALIGN_HALFWORD,
     .Mode = DMA_CIRCULAR,
     .Priority = DMA_PRIORITY_LOW,
-    #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
+    #if defined(STM32F2) || defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
     .FIFOMode = DMA_FIFOMODE_DISABLE,
     .FIFOThreshold = DMA_FIFO_THRESHOLD_FULL,
     .MemBurst = DMA_MBURST_SINGLE,
@@ -141,7 +141,7 @@ static const DMA_InitTypeDef dma_init_struct_i2s = {
 #if ENABLE_SDIO && !defined(STM32H7)
 // Parameters to dma_init() for SDIO tx and rx.
 static const DMA_InitTypeDef dma_init_struct_sdio = {
-    #if defined(STM32F4) || defined(STM32F7)
+    #if defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
     .Channel = 0,
     #elif defined(STM32G0) || defined(STM32G4) || defined(STM32L0) || defined(STM32L4) || defined(STM32WB)
     .Request = 0,
@@ -151,13 +151,13 @@ static const DMA_InitTypeDef dma_init_struct_sdio = {
     .MemInc = DMA_MINC_ENABLE,
     .PeriphDataAlignment = DMA_PDATAALIGN_WORD,
     .MemDataAlignment = DMA_MDATAALIGN_WORD,
-    #if defined(STM32F4) || defined(STM32F7)
+    #if defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
     .Mode = DMA_PFCTRL,
     #elif defined(STM32G0) || defined(STM32G4) || defined(STM32L0) || defined(STM32L4) || defined(STM32WB)
     .Mode = DMA_NORMAL,
     #endif
     .Priority = DMA_PRIORITY_VERY_HIGH,
-    #if defined(STM32F4) || defined(STM32F7)
+    #if defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
     .FIFOMode = DMA_FIFOMODE_ENABLE,
     .FIFOThreshold = DMA_FIFO_THRESHOLD_FULL,
     .MemBurst = DMA_MBURST_INC4,
@@ -169,7 +169,7 @@ static const DMA_InitTypeDef dma_init_struct_sdio = {
 #if defined(MICROPY_HW_ENABLE_DAC) && MICROPY_HW_ENABLE_DAC
 // Default parameters to dma_init() for DAC tx
 static const DMA_InitTypeDef dma_init_struct_dac = {
-    #if defined(STM32F4) || defined(STM32F7)
+    #if defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
     .Channel = 0,
     #elif defined(STM32G0) || defined(STM32G4) || defined(STM32H7) || defined(STM32L0) || defined(STM32L4) || defined(STM32WB)
     .Request = 0,
@@ -181,7 +181,7 @@ static const DMA_InitTypeDef dma_init_struct_dac = {
     .MemDataAlignment = DMA_MDATAALIGN_BYTE,
     .Mode = DMA_NORMAL,
     .Priority = DMA_PRIORITY_HIGH,
-    #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
+    #if defined(STM32F2) || defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
     .FIFOMode = DMA_FIFOMODE_DISABLE,
     .FIFOThreshold = DMA_FIFO_THRESHOLD_HALFFULL,
     .MemBurst = DMA_MBURST_SINGLE,
@@ -250,7 +250,7 @@ static const uint8_t dma_irqn[NSTREAM] = {
     0,
 };
 
-#elif defined(STM32F4) || defined(STM32F7)
+#elif defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
 
 #define NCONTROLLERS            (2)
 #define NSTREAMS_PER_CONTROLLER (8)
@@ -806,7 +806,7 @@ void DMA1_Ch4_7_DMA2_Ch3_5_IRQHandler(void) {
     IRQ_EXIT(DMA1_Ch4_7_DMA2_Ch3_5_IRQn);
 }
 
-#elif defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
+#elif defined(STM32F2) || defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
 
 void DMA1_Stream0_IRQHandler(void) {
     IRQ_ENTER(DMA1_Stream0_IRQn);
@@ -1375,7 +1375,7 @@ void dma_init(DMA_HandleTypeDef *dma, const dma_descr_t *dma_descr, uint32_t dir
                 dma->DmaBaseAddress = DMA2;
                 dma->ChannelIndex = (dma_id - NSTREAMS_PER_CONTROLLER) * 4;
             }
-            #elif defined(STM32F4) || defined(STM32F7)
+            #elif defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
             // calculate DMA base address and bitshift to be used in IRQ handler
             extern uint32_t DMA_CalcBaseAndBitshift(DMA_HandleTypeDef *hdma);
             DMA_CalcBaseAndBitshift(dma);
@@ -1631,3 +1631,27 @@ void dma_external_acquire(uint32_t controller, uint32_t stream) {
 void dma_external_release(uint32_t controller, uint32_t stream) {
     dma_disable_clock(DMA_ID_FROM_CONTROLLER_STREAM(controller, stream));
 }
+
+#if defined(STM32F2)
+uint32_t DMA_CalcBaseAndBitshift(DMA_HandleTypeDef *hdma)
+{
+  uint32_t stream_number = (((uint32_t)hdma->Instance & 0xFFU) - 16U) / 24U;
+
+  /* lookup table for necessary bitshift of flags within status registers */
+  static const uint8_t flagBitshiftOffset[8U] = {0U, 6U, 16U, 22U, 0U, 6U, 16U, 22U};
+  hdma->StreamIndex = flagBitshiftOffset[stream_number];
+
+  if (stream_number > 3U)
+  {
+    /* return pointer to HISR and HIFCR */
+    hdma->StreamBaseAddress = (((uint32_t)hdma->Instance & (uint32_t)(~0x3FFU)) + 4U);
+  }
+  else
+  {
+    /* return pointer to LISR and LIFCR */
+    hdma->StreamBaseAddress = ((uint32_t)hdma->Instance & (uint32_t)(~0x3FFU));
+  }
+
+  return hdma->StreamBaseAddress;
+}
+#endif

@@ -70,7 +70,7 @@ static const flash_layout_t flash_layout[] = {
     { FLASH_BASE, FLASH_PAGE_SIZE, (FLASH_BANK1_END + 1 - FLASH_BASE) / FLASH_PAGE_SIZE },
 };
 
-#elif defined(STM32F4)
+#elif defined(STM32F2) || defined(STM32F4)
 
 static const flash_layout_t flash_layout[] = {
     { 0x08000000, 0x04000, 4 },

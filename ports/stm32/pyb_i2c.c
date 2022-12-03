@@ -473,7 +473,7 @@ void i2c_ev_irq_handler(mp_uint_t i2c_id) {
             return;
     }
 
-    #if defined(STM32F4)
+    #if defined(STM32F2) || defined(STM32F4)
 
     if (hi2c->Instance->SR1 & I2C_FLAG_SB) {
         if (hi2c->State == HAL_I2C_STATE_BUSY_TX) {
@@ -547,7 +547,7 @@ void i2c_er_irq_handler(mp_uint_t i2c_id) {
             return;
     }
 
-    #if defined(STM32F4)
+    #if defined(STM32F2) || defined(STM32F4)
 
     uint32_t sr1 = hi2c->Instance->SR1;
 

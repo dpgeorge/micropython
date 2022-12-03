@@ -36,7 +36,7 @@
 
 #if defined(STM32F4)
 #define ADCx_COMMON ADC_COMMON_REGISTER(0)
-#elif defined(STM32F7)
+#elif defined(STM32F2) || defined(STM32F7)
 #define ADCx_COMMON ADC123_COMMON
 #elif defined(STM32L4)
 #define ADCx_COMMON __LL_ADC_COMMON_INSTANCE(0)
@@ -56,7 +56,7 @@
 #if defined(STM32F0)
 #define ADC_SAMPLETIME_DEFAULT      ADC_SAMPLETIME_13CYCLES_5
 #define ADC_SAMPLETIME_DEFAULT_INT  ADC_SAMPLETIME_239CYCLES_5
-#elif defined(STM32F4) || defined(STM32F7)
+#elif defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
 #define ADC_SAMPLETIME_DEFAULT      ADC_SAMPLETIME_15CYCLES
 #define ADC_SAMPLETIME_DEFAULT_INT  ADC_SAMPLETIME_480CYCLES
 #elif defined(STM32G4)
@@ -142,7 +142,7 @@ void adc_config(ADC_TypeDef *adc, uint32_t bits) {
     // Configure clock mode
     #if defined(STM32F0)
     adc->CFGR2 = 2 << ADC_CFGR2_CKMODE_Pos; // PCLK/4 (synchronous clock mode)
-    #elif defined(STM32F4) || defined(STM32F7) || defined(STM32L4)
+    #elif defined(STM32F2) || defined(STM32F4) || defined(STM32F7) || defined(STM32L4)
     ADCx_COMMON->CCR = 0; // ADCPR=PCLK/2
     #elif defined(STM32H7A3xx) || defined(STM32H7A3xxQ) || defined(STM32H7B3xx) || defined(STM32H7B3xxQ)
     ADC12_COMMON->CCR = 3 << ADC_CCR_CKMODE_Pos;
@@ -215,7 +215,7 @@ void adc_config(ADC_TypeDef *adc, uint32_t bits) {
     uint32_t cfgr1 = res << ADC_CFGR1_RES_Pos;
     adc->CFGR1 = (adc->CFGR1 & ~cfgr1_clr) | cfgr1;
 
-    #elif defined(STM32F4) || defined(STM32F7)
+    #elif defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
 
     uint32_t cr1_clr = ADC_CR1_RES;
     uint32_t cr1 = res << ADC_CR1_RES_Pos;
@@ -242,7 +242,7 @@ void adc_config(ADC_TypeDef *adc, uint32_t bits) {
 STATIC int adc_get_bits(ADC_TypeDef *adc) {
     #if defined(STM32F0) || defined(STM32G0) || defined(STM32L0) || defined(STM32WL)
     uint32_t res = (adc->CFGR1 & ADC_CFGR1_RES) >> ADC_CFGR1_RES_Pos;
-    #elif defined(STM32F4) || defined(STM32F7) || defined(STM32L1)
+    #elif defined(STM32F2) || defined(STM32F4) || defined(STM32F7) || defined(STM32L1)
     uint32_t res = (adc->CR1 & ADC_CR1_RES) >> ADC_CR1_RES_Pos;
     #elif defined(STM32G4) || defined(STM32H7) || defined(STM32L4) || defined(STM32WB)
     uint32_t res = (adc->CFGR & ADC_CFGR_RES) >> ADC_CFGR_RES_Pos;
@@ -289,7 +289,7 @@ STATIC void adc_config_channel(ADC_TypeDef *adc, uint32_t channel, uint32_t samp
     #endif
     adc->CHSELR = 1 << channel; // select channel for conversion
 
-    #elif defined(STM32F4) || defined(STM32F7)
+    #elif defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
 
     if (channel == ADC_CHANNEL_VREFINT || channel == ADC_CHANNEL_TEMPSENSOR) {
         ADCx_COMMON->CCR = (ADCx_COMMON->CCR & ~ADC_CCR_VBATE) | ADC_CCR_TSVREFE;

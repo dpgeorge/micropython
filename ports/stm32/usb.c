@@ -63,7 +63,7 @@
 #define MAX_ENDPOINT(dev_id) (7)
 #elif defined(STM32L4)
 #define MAX_ENDPOINT(dev_id) (5)
-#elif defined(STM32F4)
+#elif defined(STM32F2) || defined(STM32F4)
 #define MAX_ENDPOINT(dev_id) ((dev_id) == USB_PHY_FS_ID ? 3 : 5)
 #elif defined(STM32F7)
 #define MAX_ENDPOINT(dev_id) ((dev_id) == USB_PHY_FS_ID ? 5 : 8)

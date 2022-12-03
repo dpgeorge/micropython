@@ -400,7 +400,7 @@ HAL_SRC_C += $(addprefix $(STM32LIB_HAL_BASE)/Src/stm32$(MCU_SERIES)xx_,\
 	ll_utils.c \
 	)
 
-ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),f4 f7 g0 g4 h7 l0 l4 wb))
+ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),f2 f4 f7 g0 g4 h7 l0 l4 wb))
 HAL_SRC_C += $(addprefix $(STM32LIB_HAL_BASE)/Src/stm32$(MCU_SERIES)xx_,\
 	hal_pcd.c \
 	hal_pcd_ex.c \
@@ -445,7 +445,7 @@ else
 ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),f0 f4 f7 h7))
     HAL_SRC_C += $(addprefix $(STM32LIB_HAL_BASE)/Src/stm32$(MCU_SERIES)xx_, hal_can.c)
 else
-ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),l4))
+ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),f2 l4))
 HAL_SRC_C += $(addprefix $(STM32LIB_HAL_BASE)/Src/Legacy/stm32$(MCU_SERIES)xx_, hal_can.c)
 $(BUILD)/$(STM32LIB_HAL_BASE)/Src/Legacy/stm32$(MCU_SERIES)xx_hal_can.o: CFLAGS += -Wno-error=cpp
 endif

@@ -284,6 +284,27 @@
 #define MICROPY_HW_MAX_UART (8)
 #define MICROPY_HW_MAX_LPUART (0)
 
+// Configuration for STM32F2 series
+#elif defined(STM32F2)
+
+// TODO all of these need checking
+#define MP_HAL_UNIQUE_ID_ADDRESS (0x1fff7a10)
+#define PYB_EXTI_NUM_VECTORS (23)
+#define MICROPY_HW_MAX_I2C (3)
+#define MICROPY_HW_MAX_TIMER (14)
+#if defined(UART10)
+#define MICROPY_HW_MAX_UART (10)
+#elif defined(UART9)
+#define MICROPY_HW_MAX_UART (9)
+#elif defined(UART8)
+#define MICROPY_HW_MAX_UART (8)
+#elif defined(UART7)
+#define MICROPY_HW_MAX_UART (7)
+#else
+#define MICROPY_HW_MAX_UART (6)
+#endif
+#define MICROPY_HW_MAX_LPUART (0)
+
 // Configuration for STM32F4 series
 #elif defined(STM32F4)
 

@@ -91,7 +91,7 @@ extern uint64_t _bl_state[];
 #endif
 
 static inline void powerctrl_disable_hsi_if_unused(void) {
-    #if !MICROPY_HW_CLK_USE_HSI && (defined(STM32F4) || defined(STM32F7) || defined(STM32H7))
+    #if !MICROPY_HW_CLK_USE_HSI && (defined(STM32F2) || defined(STM32F4) || defined(STM32F7) || defined(STM32H7))
     // Disable HSI if it's not used to save a little bit of power
     __HAL_RCC_HSI_DISABLE();
     #endif
@@ -143,7 +143,7 @@ void powerctrl_check_enter_bootloader(void) {
     if (BL_STATE_GET_KEY(bl_state) == BL_STATE_KEY && (RCC->RCC_SR & RCC_SR_SFTRSTF)) {
         // Reset by NVIC_SystemReset with bootloader data set -> branch to bootloader
         RCC->RCC_SR = RCC_SR_RMVF;
-        #if defined(STM32F0) || defined(STM32F4) || defined(STM32G0) || defined(STM32G4) || defined(STM32L0) || defined(STM32L1) || defined(STM32L4) || defined(STM32WB)
+        #if defined(STM32F0) || defined(STM32F2) || defined(STM32F4) || defined(STM32G0) || defined(STM32G4) || defined(STM32L0) || defined(STM32L1) || defined(STM32L4) || defined(STM32WB)
         __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH();
         #endif
         branch_to_bootloader(BL_STATE_GET_REG(bl_state), BL_STATE_GET_ADDR(bl_state));
@@ -378,7 +378,7 @@ STATIC uint32_t calc_apb2_div(uint32_t wanted_div) {
     #endif
 }
 
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32G0) || defined(STM32G4) || defined(STM32H7)
+#if defined(STM32F2) || defined(STM32F4) || defined(STM32F7) || defined(STM32G0) || defined(STM32G4) || defined(STM32H7)
 
 int powerctrl_set_sysclk(uint32_t sysclk, uint32_t ahb, uint32_t apb1, uint32_t apb2) {
     // Return straightaway if the clocks are already at the desired frequency
