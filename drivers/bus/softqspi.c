@@ -190,11 +190,11 @@ static int mp_soft_qspi_read_cmd(void *self_in, uint8_t cmd, size_t len, uint32_
 
 static int mp_soft_qspi_read_cmd_qaddr_qdata(void *self_in, uint8_t cmd, uint32_t addr, size_t len, uint8_t *dest) {
     mp_soft_qspi_obj_t *self = (mp_soft_qspi_obj_t*)self_in;
-    uint8_t cmd_buf[7] = {cmd};
+    uint8_t cmd_buf[9] = {cmd};
     uint8_t addr_len = mp_spi_set_addr_buff(&cmd_buf[1], addr);
     CS_LOW(self);
     mp_soft_qspi_transfer(self, 1, cmd_buf, NULL);
-    mp_soft_qspi_qwrite(self, addr_len + 3, &cmd_buf[1]); // 3/4 addr bytes, 1 extra byte (0), 2 dummy bytes (4 dummy cycles)
+    mp_soft_qspi_qwrite(self, addr_len + 5, &cmd_buf[1]); // 3/4 addr bytes, 1 extra byte (0), 4 dummy bytes (8 dummy cycles)
     mp_soft_qspi_qread(self, len, dest);
     CS_HIGH(self);
     return 0;

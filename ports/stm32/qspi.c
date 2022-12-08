@@ -160,7 +160,7 @@ void qspi_memory_map(void) {
             | 0 << QUADSPI_CCR_SIOO_Pos // send instruction every transaction
             | 3 << QUADSPI_CCR_FMODE_Pos // memory-mapped mode
             | 3 << QUADSPI_CCR_DMODE_Pos // data on 4 lines
-            | 4 << QUADSPI_CCR_DCYC_Pos // 4 dummy cycles
+            | 8 << QUADSPI_CCR_DCYC_Pos // 8 dummy cycles
             | 0 << QUADSPI_CCR_ABSIZE_Pos // 8-bit alternate byte
             | 3 << QUADSPI_CCR_ABMODE_Pos // alternate byte on 4 lines
             | QSPI_ADSIZE << QUADSPI_CCR_ADSIZE_Pos
@@ -364,7 +364,7 @@ static int qspi_read_cmd_qaddr_qdata(void *self_in, uint8_t cmd, uint32_t addr, 
             | 0 << QUADSPI_CCR_SIOO_Pos // send instruction every transaction
             | 1 << QUADSPI_CCR_FMODE_Pos // indirect read mode
             | 3 << QUADSPI_CCR_DMODE_Pos // data on 4 lines
-            | 4 << QUADSPI_CCR_DCYC_Pos // 4 dummy cycles
+            | 8 << QUADSPI_CCR_DCYC_Pos // 8 dummy cycles
             | 0 << QUADSPI_CCR_ABSIZE_Pos // 8-bit alternate byte
             | 3 << QUADSPI_CCR_ABMODE_Pos // alternate byte on 4 lines
             | adsize << QUADSPI_CCR_ADSIZE_Pos // 32 or 24-bit address size
