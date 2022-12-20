@@ -88,6 +88,7 @@ extern struct _spi_bdev_t spi_bdev;
 #define MICROPY_HW_BDEV_SPIFLASH_EXTENDED (&spi_bdev) // for extended block protocol
 
 // SPI flash #2, to be memory mapped
+#define MICROPY_HW_QSPI_PRESCALER   (2)
 #define MICROPY_HW_QSPIFLASH_SIZE_BITS_LOG2 (26)
 #define MICROPY_HW_QSPIFLASH_CS     (pyb_pin_QSPI2_CS)
 #define MICROPY_HW_QSPIFLASH_SCK    (pyb_pin_QSPI2_CLK)
