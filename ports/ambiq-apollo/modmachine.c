@@ -47,6 +47,36 @@ STATIC mp_obj_t machine_reset(void) {
 }
 MP_DEFINE_CONST_FUN_OBJ_0(machine_reset_obj, machine_reset);
 
+STATIC mp_obj_t machine_freq(size_t n_args, const mp_obj_t *args) {
+    if (n_args == 0) {
+        mp_int_t freq = 0;
+        switch (PWRCTRL->MCUPERFREQ_b.MCUPERFREQ) {
+            case PWRCTRL_MCUPERFREQ_MCUPERFSTATUS_ULP:
+                freq = 24000000;
+                break;
+            case PWRCTRL_MCUPERFREQ_MCUPERFSTATUS_LP:
+                freq = 96000000;
+                break;
+            case PWRCTRL_MCUPERFREQ_MCUPERFSTATUS_HP:
+                freq = 192000000;
+                break;
+        }
+        return MP_OBJ_NEW_SMALL_INT(freq);
+    } else {
+        mp_int_t freq = mp_obj_get_int(args[0]);
+        if (freq == 96000000) {
+            am_hal_pwrctrl_mcu_mode_select(AM_HAL_PWRCTRL_MCU_MODE_LOW_POWER);
+        } else if (freq == 192000000) {
+            am_hal_pwrctrl_mcu_mode_select(AM_HAL_PWRCTRL_MCU_MODE_HIGH_PERFORMANCE);
+        } else {
+            mp_raise_ValueError(MP_ERROR_TEXT("unsupported frequency"));
+        }
+        SysTick_Config(freq / 1000);
+        return mp_const_none;
+    }
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_freq_obj, 0, 1, machine_freq);
+
 STATIC mp_obj_t machine_idle(void) {
     __WFE();
     return mp_const_none;
@@ -70,6 +100,7 @@ STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),            MP_ROM_QSTR(MP_QSTR_umachine) },
     { MP_ROM_QSTR(MP_QSTR_soft_reset),          MP_ROM_PTR(&machine_soft_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_reset),               MP_ROM_PTR(&machine_reset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_freq),                MP_ROM_PTR(&machine_freq_obj) },
 
     { MP_ROM_QSTR(MP_QSTR_idle),                MP_ROM_PTR(&machine_idle_obj) },
 
