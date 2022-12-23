@@ -246,7 +246,7 @@ static void amap_init(void) {
     am_hal_rtc_time_set(&t);
 
     // Initialise UART0.
-    void *phUART;
+    void *phUART = NULL;
     am_hal_uart_initialize(0, &phUART);
     am_hal_uart_power_control(phUART, AM_HAL_SYSCTRL_WAKE, false);
     am_hal_uart_configure(phUART, &g_sUartConfig);
