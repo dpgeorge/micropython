@@ -1,14 +1,7 @@
-#include <unistd.h>
 #include "py/mphal.h"
-#include "py/ringbuf.h"
-#include "py/stream.h"
-#include "extmod/misc.h"
+#include "py/runtime.h"
 #include "am_mcu_apollo.h"
-
-#define MICROPY_HW_STDIN_BUFFER_LEN (256)
-
-static uint8_t stdin_ringbuf_array[MICROPY_HW_STDIN_BUFFER_LEN];
-static ringbuf_t stdin_ringbuf = { stdin_ringbuf_array, sizeof(stdin_ringbuf_array), 0, 0 };
+#include "uart.h"
 
 static inline void uart_write_char(int c) {
     uint32_t uart_id = 0;
@@ -17,7 +10,7 @@ static inline void uart_write_char(int c) {
     UARTn(uart_id)->DR = c;
 }
 
-void uart_process_incoming_char(uint32_t uart_id) {
+static void uart_process_incoming_char(uint32_t uart_id) {
     while (!UARTn(uart_id)->FR_b.RXFE && ringbuf_free(&stdin_ringbuf)) {
         int c = UARTn(uart_id)->DR;
         if (c == mp_interrupt_char) {
@@ -44,33 +37,8 @@ void UART0_IRQHandler(void) {
     }
 }
 
-uintptr_t mp_hal_stdio_poll(uintptr_t poll_flags) {
-    uintptr_t ret = 0;
-
-    if ((poll_flags & MP_STREAM_POLL_RD) && ringbuf_peek(&stdin_ringbuf) != -1) {
-        ret |= MP_STREAM_POLL_RD;
-    }
-
-    #if MICROPY_PY_OS_DUPTERM
-    ret |= mp_uos_dupterm_poll(poll_flags);
-    #endif
-
-    return ret;
-}
-
-void mp_hal_stdout_tx_strn(const char *str, size_t len) {
+void uart_write(const char *str, size_t len) {
     while (len--) {
         uart_write_char(*str++);
-    }
-}
-
-int mp_hal_stdin_rx_chr(void) {
-    for (;;) {
-        //uart_process_incoming_char(0);
-        int c = ringbuf_get(&stdin_ringbuf);
-        if (c != -1) {
-            return c;
-        }
-        MICROPY_EVENT_POLL_HOOK;
     }
 }

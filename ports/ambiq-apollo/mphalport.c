@@ -1,6 +1,67 @@
-#include "py/runtime.h"
 #include "py/mphal.h"
+#include "py/runtime.h"
+#include "py/stream.h"
 #include "shared/timeutils/timeutils.h"
+#include "uart.h"
+#include "usbd.h"
+
+#define MICROPY_HW_STDIN_BUFFER_LEN (256)
+
+static uint8_t stdin_ringbuf_array[MICROPY_HW_STDIN_BUFFER_LEN];
+ringbuf_t stdin_ringbuf = { stdin_ringbuf_array, sizeof(stdin_ringbuf_array), 0, 0 };
+
+uintptr_t mp_hal_stdio_poll(uintptr_t poll_flags) {
+    uintptr_t ret = 0;
+
+    #if MICROPY_HW_USB_CDC
+    usbd_cdc_poll();
+    #endif
+
+    if ((poll_flags & MP_STREAM_POLL_RD) && ringbuf_peek(&stdin_ringbuf) != -1) {
+        ret |= MP_STREAM_POLL_RD;
+    }
+
+    #if MICROPY_PY_OS_DUPTERM
+    ret |= mp_uos_dupterm_poll(poll_flags);
+    #endif
+
+    return ret;
+}
+
+void mp_hal_stdout_tx_strn(const char *str, size_t len) {
+    uart_write(str, len);
+
+    #if MICROPY_HW_USB_CDC
+    usbd_cdc_write(str, len);
+    #endif
+
+    #if MICROPY_PY_OS_DUPTERM
+    mp_uos_dupterm_tx_strn(str, len);
+    #endif
+}
+
+int mp_hal_stdin_rx_chr(void) {
+    for (;;) {
+        #if MICROPY_HW_USB_CDC
+        usbd_cdc_poll();
+        #endif
+
+        //uart_process_incoming_char(0);
+        int c = ringbuf_get(&stdin_ringbuf);
+        if (c != -1) {
+            return c;
+        }
+
+        #if MICROPY_PY_OS_DUPTERM
+        int dupterm_c = mp_uos_dupterm_rx_chr();
+        if (dupterm_c >= 0) {
+            return dupterm_c;
+        }
+        #endif
+
+        MICROPY_EVENT_POLL_HOOK;
+    }
+}
 
 // The SysTick timer counts down at SYSCLK, so we can use that knowledge to grab a microsecond counter.
 mp_uint_t mp_hal_ticks_us(void) {
@@ -45,6 +106,9 @@ void mp_hal_delay_ms(mp_uint_t ms) {
     do {
         MICROPY_EVENT_POLL_HOOK;
     } while (ticks_ms - start < ms);
+}
+void am_util_delay_ms(uint32_t ms) {
+    mp_hal_delay_ms(ms);
 }
 
 void mp_hal_delay_us(mp_uint_t us) {

@@ -9,6 +9,7 @@ void amap_main(void);
 void Reset_Handler(void) __attribute__((naked));
 void SysTick_Handler(void);
 void UART0_IRQHandler(void);
+void USB_IRQHandler(void);
 
 static void amap_init(void);
 
@@ -59,7 +60,7 @@ const uint32_t isr_vector[128] __attribute__((section(".isr_vector"))) = {
     0,                                      // 24: Crypto Secure
     0,                                      // 25: Reserved
     0,                                      // 26: SDIO
-    0,                                      // 27: USB
+    (uint32_t)USB_IRQHandler,               // 27: USB
     0,                                      // 28: GPU
     0,                                      // 29: DISP
     0,                                      // 30: DSI

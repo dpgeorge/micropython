@@ -1,8 +1,12 @@
 #include "py/obj.h"
+#include "py/ringbuf.h"
 #include "shared/runtime/interrupt_char.h"
 #include "am_mcu_apollo.h"
 
 extern uint32_t ticks_ms;
+
+//extern int mp_interrupt_char;
+extern ringbuf_t stdin_ringbuf;
 
 void mp_hal_ticks_cpu_enable(void);
 void mp_hal_delay_us(mp_uint_t us);

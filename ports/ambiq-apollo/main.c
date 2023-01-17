@@ -5,6 +5,7 @@
 #include "shared/readline/readline.h"
 #include "shared/runtime/gchelper.h"
 #include "shared/runtime/pyexec.h"
+#include "tusb.h"
 #include "modmachine.h"
 
 extern uint32_t _sstack, _estack, _sidata, _sdata, _edata, _sbss, _ebss;
@@ -12,11 +13,17 @@ extern uint32_t _sstack, _estack, _sidata, _sdata, _edata, _sbss, _ebss;
 static char gc_heap[256 * 1024];
 
 void amap_main(void) {
+    tusb_init();
+
     // Initialise stack extents and GC heap.
     mp_stack_set_top(&_estack);
     mp_stack_set_limit((char *)&_estack - (char *)&_sstack - 512);
     gc_init(&gc_heap[0], &gc_heap[MP_ARRAY_SIZE(gc_heap)]);
 
+    #if 0
+    char buf[4];
+    int count = 0;
+    #endif
     for (;;) {
         // Initialise MicroPython runtime.
         mp_init();
@@ -39,6 +46,23 @@ void amap_main(void) {
         }
 
         for (;;) {
+            #if 0
+            ++count;
+            buf[0] = '0' + ((count / 10) % 10);
+            buf[1] = '0' + (count % 10);
+            buf[2] = '\r';
+            buf[3] = '\n';
+    usbd_cdc_write(buf, 4);
+    usbd_cdc_write(
+        "0a.........b.........c.........d.........e.........f.........g.........h.........i.........j.........k\r\n"
+        "1a.........b.........c.........d.........e.........f.........g.........h.........i.........j.........k\r\n"
+        "2a.........b.........c.........d.........e.........f.........g.........h.........i.........j.........k\r\n"
+        "3a.........b.........c.........d.........e.........f.........g.........h.........i.........j.........k\r\n"
+        "4a.........b.........c.........d.........e.........f.........g.........h.........i.........j.........k\r\n"
+        "5a.........b.........c.........d.........e.........f.........g.........h.........i.........j.........k\r\n"
+        , 6*104);
+    #endif
+
             if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL) {
                 if (pyexec_raw_repl() != 0) {
                     break;

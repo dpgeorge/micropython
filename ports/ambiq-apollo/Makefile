@@ -65,6 +65,7 @@ CXXFLAGS += $(filter-out -std=c99,$(CFLAGS))
 LIBS += "$(shell $(CC) $(CFLAGS) -print-libgcc-file-name)"
 
 SRC_C += \
+	am_bsp.c \
 	amap.c \
 	machine_pin.c \
 	main.c \
@@ -72,6 +73,9 @@ SRC_C += \
 	modtime.c \
 	mphalport.c \
 	uart.c \
+	usbd.c \
+	tusb_port.c \
+	dcd_apollo4.c \
 	shared/libc/printf.c \
 	shared/libc/string0.c \
 	shared/readline/readline.c \
@@ -81,7 +85,18 @@ SRC_C += \
 	shared/runtime/stdout_helpers.c \
 	shared/runtime/sys_stdio_mphal.c \
 	shared/timeutils/timeutils.c \
+	shared/tinyusb/mp_cdc_common.c \
+	shared/tinyusb/mp_usbd.c \
 	drivers/bus/softspi.c \
+
+SRC_C += \
+	lib/tinyusb/src/class/cdc/cdc_device.c \
+	lib/tinyusb/src/common/tusb_fifo.c \
+	lib/tinyusb/src/device/usbd.c \
+	lib/tinyusb/src/device/usbd_control.c \
+	lib/tinyusb/src/tusb.c \
+
+CFLAGS += -I$(TOP)/lib/tinyusb/src
 
 SRC_C += $(addprefix lib/libm/,\
 	math.c \
@@ -119,6 +134,7 @@ SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/am_hal_gpio.c
 $(BUILD)/$(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/am_hal_gpio.o: CFLAGS += -Wno-maybe-uninitialized
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/am_hal_pwrctrl.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/am_hal_queue.c
+SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/am_hal_usb.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_bootrom_helper.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_cachectrl.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_clkgen.c

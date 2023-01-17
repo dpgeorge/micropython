@@ -1,6 +1,10 @@
 #include <stdint.h>
 
-#define MICROPY_CONFIG_ROM_LEVEL (MICROPY_CONFIG_ROM_LEVEL_EXTRA_FEATURES)
+#define MICROPY_HW_BOARD_NAME                   "AMAP4PEVB"
+#define MICROPY_HW_MCU_NAME                     "AMAP4P"
+#define MICROPY_HW_USB_CDC                      (1)
+
+#define MICROPY_CONFIG_ROM_LEVEL                (MICROPY_CONFIG_ROM_LEVEL_EXTRA_FEATURES)
 
 #define MICROPY_PERSISTENT_CODE_LOAD            (1)
 #define MICROPY_EMIT_THUMB                      (1)
@@ -34,9 +38,8 @@ typedef long mp_off_t;
 // Need to provide a declaration/definition of alloca().
 #include <alloca.h>
 
-#define MICROPY_HW_BOARD_NAME "AMAP4PEVB"
-#define MICROPY_HW_MCU_NAME "AMAP4P"
 #define MICROPY_EVENT_POLL_HOOK \
+    usbd_task(); \
     mp_handle_pending(true); \
 
 #define MP_STATE_PORT MP_STATE_VM
@@ -55,3 +58,5 @@ static inline mp_uint_t disable_irq(void) {
 
 #define MICROPY_BEGIN_ATOMIC_SECTION()     disable_irq()
 #define MICROPY_END_ATOMIC_SECTION(state)  enable_irq(state)
+
+void usbd_task(void);
