@@ -1,3 +1,5 @@
+#define ERROR_printf(...) printf(__VA_ARGS__)
+#define DEBUG_printf(...) // printf(__VA_ARGS__)
 //*****************************************************************************
 //
 //! @file am_hal_usb.c
@@ -52,7 +54,6 @@
 #include <string.h>
 
 #include "am_mcu_apollo.h"
-#include "am_util_delay.h"
 
 //*****************************************************************
 //
@@ -1276,6 +1277,7 @@ static inline void
 am_hal_usb_ep0_state_reset(am_hal_usb_state_t *pState)
 {
     pState->eEP0State = AM_HAL_USB_EP0_STATE_IDLE;
+DEBUG_printf("at %d, set eEP0State=%d\n", __LINE__, pState->eEP0State);
     am_hal_usb_xfer_reset(&pState->ep0_xfer);
 }
 
@@ -1334,6 +1336,7 @@ am_hal_usb_ep_stall(void *pHandle, uint8_t ui8EpAddr)
         // Request, now it should be 'AM_HAL_USB_EP0_STATE_SETUP'
         // An EP0 interrupt will generate, SentStall bit should be clear in
         // ep0 interrupt handler
+        DEBUG_printf("CSR0_ServicedOutPktRdyAndSendStall_Set %d\n", __LINE__);
         CSR0_ServicedOutPktRdyAndSendStall_Set(pUSB);
     }
     else
@@ -1530,6 +1533,7 @@ am_hal_usb_ep_init(void *pHandle, uint8_t ui8EpAddr, uint8_t ui8EpAttr, uint16_t
 #else       // Single-packet buffering
             InFIFOsz_Set(pUSB, FIFO_SINGLE_PKTBUF, sz);
             InFIFOadd_Set(pUSB, am_hal_usb_ep_fifo_addr(&pState->ui32Allocated, ui16MaxPacket));
+            DEBUG_printf("IN FIFO ep=%02x maxpacket=%d sz=%d addr=%d\n", ui8EpAddr, ui16MaxPacket, sz, (int)InFIFOadd(pUSB));
 #endif
             break;
         case AM_HAL_USB_EP_DIR_OUT:
@@ -1565,6 +1569,7 @@ am_hal_usb_ep_init(void *pHandle, uint8_t ui8EpAddr, uint8_t ui8EpAttr, uint16_t
 #else       // Single-packet buffering
             OutFIFOsz_Set(pUSB, FIFO_SINGLE_PKTBUF, sz);
             OutFIFOadd_Set(pUSB, am_hal_usb_ep_fifo_addr(&pState->ui32Allocated, ui16MaxPacket));
+            DEBUG_printf("OUT FIFO ep=%02x maxpacket=%d sz=%d addr=%d\n", ui8EpAddr, ui16MaxPacket, sz, (int)OutFIFOadd(pUSB));
 #endif
             break;
     }
@@ -1595,6 +1600,7 @@ am_hal_usb_ep0_xfer(am_hal_usb_state_t *pState, uint8_t ui8EpNum, uint8_t ui8EpD
 
     if (status == AM_HAL_STATUS_IN_USE)
     {
+        ERROR_printf("FAIL!\n");
         AM_HAL_USB_EXIT_CRITICAL;
         return status;
     }
@@ -1605,45 +1611,62 @@ am_hal_usb_ep0_xfer(am_hal_usb_state_t *pState, uint8_t ui8EpNum, uint8_t ui8EpD
     pState->ep0_xfer.buf = pui8Buf;
     pState->ep0_xfer.len = ui16Len;
 
+    DEBUG_printf("ep0_xfer ep=%02x dir=%02x len=%d\n", ui8EpNum, ui8EpDir, ui16Len);
+
+    if (ui16Len == 0x0 && ui8EpDir == AM_HAL_USB_EP_DIR_OUT) {
+        DEBUG_printf("dummy OUT ZLP\n");
+        am_hal_usb_xfer_reset(&pState->ep0_xfer);
+        AM_HAL_USB_EXIT_CRITICAL;
+        return AM_HAL_STATUS_SUCCESS;
+    }
+
     switch ( pState->eEP0State )
     {
         case AM_HAL_USB_EP0_STATE_SETUP:
+            DEBUG_printf("ep0_xfer %d\n", __LINE__);
             if (ui16Len == 0x0)
             {
                 // Upper layer USB stack just use zero length packet to confirm no data stage
                 // some requests like CLEAR_FEARURE, SET_ADDRESS, SET_CONFIGRATION, etc.
                 // end the control transfer from device side
+                DEBUG_printf("CSR0_ServicedOutPktRdyAndDataEnd_Set %d\n", __LINE__);
                 CSR0_ServicedOutPktRdyAndDataEnd_Set(pUSB);
 
                 // Move to the status stage and second EP0 interrupt
                 // Will indicate request is completed
                 pState->eEP0State =
                     (ui8EpDir == AM_HAL_USB_EP_DIR_IN) ? AM_HAL_USB_EP0_STATE_STATUS_TX : AM_HAL_USB_EP0_STATE_STATUS_RX;
+                DEBUG_printf("at %d, set eEP0State=%d\n", __LINE__, pState->eEP0State);
 
             }
             else
             {
                 // Enter the data stage if the request have the data stage
                 // some requests like GET_*_DESCRIPTOR
+                DEBUG_printf("CSR0_ServicedOutPktRdy_Set %d\n", __LINE__);
                 CSR0_ServicedOutPktRdy_Set(pUSB);
 
                 switch ( ui8EpDir )
                 {
                     // Read requests handling
                     case AM_HAL_USB_EP_DIR_IN:
+            DEBUG_printf("ep0_xfer %d\n", __LINE__);
                         // Load the first packet
                         if (ui16Len < maxpacket)
                         {
                             pState->ep0_xfer.remaining = 0x0;
                             pState->eEP0State = AM_HAL_USB_EP0_STATE_STATUS_TX;
+DEBUG_printf("at %d, set eEP0State=%d\n", __LINE__, pState->eEP0State);
                             am_hal_usb_fifo_loading(pUSB, 0x0, pui8Buf, ui16Len);
 
                             CSR0_InPktRdyAndDataEnd_Set(pUSB);
                         }
                         else
                         {
-                            pState->ep0_xfer.remaining = ui16Len - maxpacket;
+                            //assert(ui16Len == maxpacket);
+                            pState->ep0_xfer.remaining = 0;//ui16Len - maxpacket;
                             pState->eEP0State = AM_HAL_USB_EP0_STATE_DATA_TX;
+DEBUG_printf("at %d, set eEP0State=%d\n", __LINE__, pState->eEP0State);
                             am_hal_usb_fifo_loading(pUSB, 0x0, pui8Buf, maxpacket);
 
                             // The remaining packets will be loaded in the ep0 interrupt handler function
@@ -1652,16 +1675,49 @@ am_hal_usb_ep0_xfer(am_hal_usb_state_t *pState, uint8_t ui8EpNum, uint8_t ui8EpD
                         }
                         break;
                     case AM_HAL_USB_EP_DIR_OUT:
+            DEBUG_printf("ep0_xfer %d\n", __LINE__);
                         // Write requests handling
                         // Waiting the host sending the data to the device
                         pState->ep0_xfer.remaining = ui16Len;
                         pState->eEP0State = AM_HAL_USB_EP0_STATE_DATA_RX;
+DEBUG_printf("at %d, set eEP0State=%d\n", __LINE__, pState->eEP0State);
 
                         break;
                 }
             }
             break;
+        case AM_HAL_USB_EP0_STATE_DATA_TX:
+            if (ui16Len < maxpacket) {
+                DEBUG_printf("ep0_xfer %d\n", __LINE__);
+                pState->ep0_xfer.remaining = 0x0;
+                pState->eEP0State = AM_HAL_USB_EP0_STATE_STATUS_TX;
+                am_hal_usb_fifo_loading(pUSB, 0x0, pui8Buf, ui16Len);
+                CSR0_InPktRdyAndDataEnd_Set(pUSB);
+            } else {
+                //assert(ui16Len == maxpacket);
+                DEBUG_printf("ep0_xfer %d\n", __LINE__);
+                pState->ep0_xfer.remaining = 0;
+                pState->eEP0State = AM_HAL_USB_EP0_STATE_DATA_TX;
+                am_hal_usb_fifo_loading(pUSB, 0x0, pui8Buf, maxpacket);
+                CSR0_InPktRdy_Set(pUSB);
+            }
+            break;
+        case AM_HAL_USB_EP0_STATE_STATUS_RX:
+            if (ui16Len == 0x0 && ui8EpDir == AM_HAL_USB_EP_DIR_IN) {
+                DEBUG_printf("ep0_xfer %d\n", __LINE__);
+            } else {
+                ERROR_printf("FAIL %d\n", __LINE__);
+            }
+
+            am_hal_usb_ep0_state_reset(pState);
+
+            //
+            // check if a new next setup request is coming
+            //
+            //am_hal_usb_ep0_handle_setup_req(pState, pUSB);
+            break;
         default:
+            DEBUG_printf("ep0_xfer %d, eEP0State=%d\n", __LINE__, pState->eEP0State);
             AM_HAL_USB_EXIT_CRITICAL;
             return AM_HAL_STATUS_FAIL;
     }
@@ -1731,6 +1787,7 @@ am_hal_usb_non_ep0_xfer(am_hal_usb_state_t *pState, uint8_t ui8EpNum, uint8_t ui
 
             pXfer->buf = pui8Buf;
             pXfer->len = ui16Len;
+            DEBUG_printf("(%d) IN FIFO written len=%d\n", __LINE__, ui16Len - pXfer->remaining);
             INCSRL_InPktRdy_Set(pUSB);
             INTRINE_Enable(pUSB, 0x1 << ui8EpNum);
             break;
@@ -1759,6 +1816,7 @@ am_hal_usb_non_ep0_xfer(am_hal_usb_state_t *pState, uint8_t ui8EpNum, uint8_t ui
 uint32_t
 am_hal_usb_ep_xfer(void *pHandle, uint8_t ui8EpAddr, uint8_t *pui8Buf, uint16_t ui16Len)
 {
+DEBUG_printf("am_hal_usb_ep_xfer(ep=%02x, len=%d)\n", ui8EpAddr, ui16Len);
     am_hal_usb_state_t *pState = (am_hal_usb_state_t *)pHandle;
 
 #ifndef AM_HAL_DISABLE_API_VALIDATION
@@ -2161,7 +2219,9 @@ am_hal_usb_ep0_handle_setup_req(am_hal_usb_state_t *pState, USB_Type *pUSB)
     {
         uint16_t count0 = COUNT0(pUSB);
         am_hal_usb_fifo_unloading(pUSB, AM_HAL_USB_EP0_NUMBER, setup_req, count0);
+DEBUG_printf("got setup packet:"); for (int i = 0; i < count0; ++i) { DEBUG_printf(" %02x", setup_req[i]); } DEBUG_printf("\n");
         pState->eEP0State = AM_HAL_USB_EP0_STATE_SETUP;
+DEBUG_printf("at %d, set eEP0State=%d\n", __LINE__, pState->eEP0State);
         // Let the upper layer USB device stack to handle this request
         pState->ep0_setup_callback(setup_req);
     }
@@ -2170,22 +2230,25 @@ am_hal_usb_ep0_handle_setup_req(am_hal_usb_state_t *pState, USB_Type *pUSB)
 static void
 am_hal_usb_ep0_handling(am_hal_usb_state_t *pState, USB_Type *pUSB)
 {
-    uint8_t *buf;
     uint16_t index, remaining, maxpacket, count0;
 
     // Select the EP0
     EP_INDEX_Set(pUSB, AM_HAL_USB_EP0_NUMBER);
+
+    DEBUG_printf("ep0_handling IDX=%08x:%08x:%08x\n", (int)pUSB->IDX0, (int)pUSB->IDX1, (int)pUSB->IDX2);
 
     maxpacket = pState->ep0_maxpacket;
 
     switch ( pState->eEP0State )
     {
         case AM_HAL_USB_EP0_STATE_IDLE:
+            DEBUG_printf("ep0_handling %d\n", __LINE__);
             // process the setup request
             am_hal_usb_ep0_handle_setup_req(pState, pUSB);
             break;
 
         case AM_HAL_USB_EP0_STATE_SETUP:
+            DEBUG_printf("ep0_handling %d\n", __LINE__);
             // This case is for unsupported setup requests
             if (CSR0_SentStall(pUSB))
             {
@@ -2198,8 +2261,8 @@ am_hal_usb_ep0_handling(am_hal_usb_state_t *pState, USB_Type *pUSB)
             break;
 
         case AM_HAL_USB_EP0_STATE_DATA_RX:
+            DEBUG_printf("ep0_handling %d\n", __LINE__);
             remaining = pState->ep0_xfer.remaining;
-            buf       = pState->ep0_xfer.buf;
             index     = pState->ep0_xfer.len - remaining;
 
             // 7.6 error handling
@@ -2236,18 +2299,21 @@ am_hal_usb_ep0_handling(am_hal_usb_state_t *pState, USB_Type *pUSB)
                 if (count0 < maxpacket)
                 {
                     pState->eEP0State = AM_HAL_USB_EP0_STATE_STATUS_RX;
+                DEBUG_printf("at %d, set eEP0State=%d\n", __LINE__, pState->eEP0State);
+                DEBUG_printf("CSR0_ServicedOutPktRdyAndDataEnd_Set %d\n", __LINE__);
                     CSR0_ServicedOutPktRdyAndDataEnd_Set(pUSB);
                 }
                 else
                 {
+                DEBUG_printf("CSR0_ServicedOutPktRdy_Set %d\n", __LINE__);
                     CSR0_ServicedOutPktRdy_Set(pUSB);
                 }
             }
             break;
        case AM_HAL_USB_EP0_STATE_DATA_TX:
+            DEBUG_printf("ep0_handling %d\n", __LINE__);
             // Read requests handling
             remaining = pState->ep0_xfer.remaining;
-            buf       = pState->ep0_xfer.buf;
             index     = pState->ep0_xfer.len - remaining;
 
             if (CSR0_SetupEnd(pUSB))
@@ -2268,11 +2334,15 @@ am_hal_usb_ep0_handling(am_hal_usb_state_t *pState, USB_Type *pUSB)
 
             if (CSR0_InPktRdy(pUSB) == 0x0) //In data packet FIFO is empty
             {
+                // Indicate this packet is done, but stay in this state.
+                am_hal_usb_xfer_complete(pState, &pState->ep0_xfer, 0x0 | AM_HAL_USB_EP_DIR_IN_MASK, pState->ep0_xfer.len, USB_XFER_DONE, NULL);
+                #if 0
                 if (remaining <= maxpacket)
                 {
                     am_hal_usb_fifo_loading(pUSB, 0x0, buf + index, remaining);
                     pState->ep0_xfer.remaining = 0;
                     pState->eEP0State = AM_HAL_USB_EP0_STATE_STATUS_TX;
+DEBUG_printf("at %d, set eEP0State=%d\n", __LINE__, pState->eEP0State);
 
                     CSR0_InPktRdyAndDataEnd_Set(pUSB);
                 }
@@ -2282,10 +2352,12 @@ am_hal_usb_ep0_handling(am_hal_usb_state_t *pState, USB_Type *pUSB)
                     am_hal_usb_fifo_loading(pUSB, 0x0, buf + index, maxpacket);
                     CSR0_InPktRdy_Set(pUSB);
                 }
+                #endif
             }
 
             break;
         case AM_HAL_USB_EP0_STATE_STATUS_RX:
+            DEBUG_printf("ep0_handling %d\n", __LINE__);
             // See 7.6 error handling
             // 1. The host sends more data during the OUT Data phase of a write request than was specified in the command.
             //    This condition is detected when the host sends an OUT token after the DataEnd bit (CSR0.D3) has been set.
@@ -2301,12 +2373,12 @@ am_hal_usb_ep0_handling(am_hal_usb_state_t *pState, USB_Type *pUSB)
             {
                 am_hal_usb_xfer_complete(pState, &pState->ep0_xfer, 0x0, pState->ep0_xfer.len - pState->ep0_xfer.remaining, USB_XFER_DONE, NULL);
             }
-            am_hal_usb_ep0_state_reset(pState);
+            //am_hal_usb_ep0_state_reset(pState);
 
             //
             // check if a new next setup request is coming
             //
-            am_hal_usb_ep0_handle_setup_req(pState, pUSB);
+            //am_hal_usb_ep0_handle_setup_req(pState, pUSB);
             break;
 
         case AM_HAL_USB_EP0_STATE_STATUS_TX:
@@ -2315,6 +2387,7 @@ am_hal_usb_ep0_handling(am_hal_usb_state_t *pState, USB_Type *pUSB)
             // This condition is detected when the host sends an IN token after the DataEnd bit in the CSR0 register has been set.
             if (CSR0_SentStall(pUSB))
             {
+            DEBUG_printf("ep0_handling %d\n", __LINE__);
                 // Clear the SentStall bit
                 CSR0_SentStall_Clear(pUSB);
                 // Notify the upper layer USB stack to handle it
@@ -2322,6 +2395,7 @@ am_hal_usb_ep0_handling(am_hal_usb_state_t *pState, USB_Type *pUSB)
             }
             else
             {
+            DEBUG_printf("ep0_handling %d\n", __LINE__);
                 am_hal_usb_xfer_complete(pState, &pState->ep0_xfer, 0x0 | AM_HAL_USB_EP_DIR_IN_MASK, pState->ep0_xfer.len - pState->ep0_xfer.remaining, USB_XFER_DONE, NULL);
             }
             am_hal_usb_ep0_state_reset(pState);
@@ -2333,6 +2407,7 @@ am_hal_usb_ep0_handling(am_hal_usb_state_t *pState, USB_Type *pUSB)
             break;
 
         default:
+            DEBUG_printf("ep0_handling %d\n", __LINE__);
             // Never come here
             break;
     }
@@ -2476,6 +2551,7 @@ am_hal_usb_interrupt_service(void *pHandle,
     // Handling the resume interrupt
     if (ui32IntrUsbStatus & USB_INTRUSB_Resume_Msk)
     {
+        DEBUG_printf("ISR resume\n");
         //
         // Turning XCVRs on
         //
@@ -2492,6 +2568,8 @@ am_hal_usb_interrupt_service(void *pHandle,
     // Handling the reset interrupt
     if (ui32IntrUsbStatus & USB_INTRUSB_Reset_Msk)
     {
+    DEBUG_printf("==============================================================================================\n");
+        DEBUG_printf("ISR reset\n");
         // Back to the init state
         pState->eDevState = AM_HAL_USB_DEV_STATE_INIT;
         am_hal_usb_ep_xfer_t *pXfer = &pState->ep0_xfer;
@@ -2547,6 +2625,7 @@ am_hal_usb_interrupt_service(void *pHandle,
     // Handling the SOF interrupt
     if (ui32IntrUsbStatus & USB_INTRUSB_SOF_Msk)
     {
+        DEBUG_printf("ISR SOF\n");
         // Notify the SOF event
 #ifdef AM_HAL_USB_FEATURE_EP_READ_TIMEOUT
         for (int i = 0; i < AM_HAL_USB_EP_MAX_NUMBER; i++)
@@ -2576,6 +2655,7 @@ am_hal_usb_interrupt_service(void *pHandle,
     // Handling the EP0 interrupt
     if (ui32IntrInStatus & USB_INTRIN_EP0_Msk)
     {
+        DEBUG_printf("ISR ep0 %08x\n", (int)ui32IntrInStatus);
         am_hal_usb_ep0_handling(pState, pUSB);
     }
 
@@ -2584,6 +2664,7 @@ am_hal_usb_interrupt_service(void *pHandle,
     {
         if (ui32IntrInStatus & (0x1 << i))
         {
+        DEBUG_printf("ISR %d\n", __LINE__);
             am_hal_usb_in_ep_handling(pState, pUSB, i);
         }
     }
@@ -2593,6 +2674,7 @@ am_hal_usb_interrupt_service(void *pHandle,
     {
         if (ui32IntrOutStatus & (0x1 << i))
         {
+        DEBUG_printf("ISR %d\n", __LINE__);
             am_hal_usb_out_ep_handling(pState, pUSB, i);
         }
     }
@@ -2600,6 +2682,7 @@ am_hal_usb_interrupt_service(void *pHandle,
     // Handing the suspend interrupt finally
     if (ui32IntrUsbStatus & USB_INTRUSB_Suspend_Msk)
     {
+        DEBUG_printf("ISR suspend\n");
         //
         // Turning XCVRs off for more power saving
         //
