@@ -4,6 +4,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2014-2016 Paul Sokolovsky
+ * Copyright (c) 2021-2023 Damien P. George
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,13 +34,273 @@
 
 #if MICROPY_PY_UZLIB
 
-#include "lib/uzlib/tinf.h"
+#include "lib/uzlib/uzlib.h"
 
 #if 0 // print debugging info
 #define DEBUG_printf DEBUG_printf
 #else // don't print debugging info
 #define DEBUG_printf(...) (void)0
 #endif
+
+#if MICROPY_PY_UZLIB_COMPRESS
+
+// TODO: check this header
+#define ZLIB_HEADER ("\x78\x9c")
+#define ZLIB_HEADER_LEN (2)
+
+#define GZIP_HEADER ("\x1f\x8b\x08\x00" "\x00\x00\x00\x00" "\x04\x03")
+#define GZIP_HEADER_LEN (10)
+
+typedef enum {
+    OUT_RAW,
+    OUT_ZLIB,
+    OUT_GZIP,
+} out_type_t;
+
+typedef struct _mp_obj_compio_t {
+    mp_obj_base_t base;
+    mp_obj_t dest_stream;
+    mp_obj_t hist_obj;
+    size_t input_len;
+    uint32_t input_checksum;
+    out_type_t out_type;
+    struct uzlib_lz77_state lz77;
+} mp_obj_compio_t;
+
+static inline void put_le32(char *buf, uint32_t value) {
+    buf[0] = value & 0xff;
+    buf[1] = value >> 8 & 0xff;
+    buf[2] = value >> 16 & 0xff;
+    buf[3] = value >> 24 & 0xff;
+}
+
+static inline void put_be32(char *buf, uint32_t value) {
+    buf[3] = value & 0xff;
+    buf[2] = value >> 8 & 0xff;
+    buf[1] = value >> 16 & 0xff;
+    buf[0] = value >> 24 & 0xff;
+}
+
+STATIC out_type_t parse_wbits(mp_obj_t wbits_arg, size_t *hist_len) {
+    mp_int_t wbits = 8;
+    if (wbits_arg != MP_OBJ_NULL) {
+        wbits = mp_obj_get_int(wbits_arg);
+    }
+    if (wbits < 0) {
+        *hist_len = 1 << -wbits;
+        return OUT_RAW;
+    } else if (wbits < 16) {
+        *hist_len = 1 << wbits;
+        return OUT_ZLIB;
+    } else {
+        *hist_len = 1 << (wbits - 16);
+        return OUT_GZIP;
+    }
+}
+
+STATIC void compio_out_byte(struct Outbuf *outbuf, uint8_t b) {
+    mp_obj_compio_t *self = outbuf->dest_write_data;
+    const mp_stream_p_t *stream = mp_get_stream(self->dest_stream);
+    int err;
+    mp_uint_t ret = stream->write(self->dest_stream, &b, 1, &err);
+    if (ret == MP_STREAM_ERROR) {
+        mp_raise_OSError(err);
+    }
+}
+
+STATIC mp_obj_t compio_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+    mp_arg_check_num(n_args, n_kw, 1, 2, false);
+
+    // Check that the input stream is a stream with write capabilities.
+    mp_get_stream_raise(args[0], MP_STREAM_OP_WRITE);
+
+    // Parse "wbits" argument.
+    size_t hist_len;
+    out_type_t out_type = parse_wbits(n_args > 1 ? args[1] : MP_OBJ_NULL, &hist_len);
+
+    // Get or allocate the history buffer.
+    mp_obj_t hist_obj = MP_OBJ_NULL;
+    uint8_t *hist = NULL;
+    if (n_args > 2) {
+        mp_buffer_info_t bufinfo;
+        mp_get_buffer_raise(args[2], &bufinfo, MP_BUFFER_RW);
+        if (bufinfo.len < hist_len) {
+            hist_len = bufinfo.len;
+        }
+        hist_obj = args[2];
+        hist = bufinfo.buf;
+    }
+    if (hist == NULL) {
+        hist = m_new(uint8_t, hist_len);
+    }
+
+    // Initialise compression object and state.
+    mp_obj_compio_t *self = m_new_obj(mp_obj_compio_t);
+    self->base.type = type;
+    self->dest_stream = args[0];
+    self->hist_obj = hist_obj;
+    self->input_len = 0;
+    if (out_type == OUT_ZLIB) {
+        self->input_checksum = 1; // ADLER32
+    } else {
+        self->input_checksum = ~0; // CRC32
+    }
+    self->out_type = out_type;
+    uzlib_lz77_init(&self->lz77, hist, hist_len);
+    self->lz77.outbuf.dest_write_data = self;
+    self->lz77.outbuf.dest_write_cb = compio_out_byte;
+
+    // Write header if needed.
+    if (out_type != OUT_RAW) {
+        const mp_stream_p_t *stream = mp_get_stream(self->dest_stream);
+        int err;
+        mp_uint_t ret;
+        if (out_type == OUT_ZLIB) {
+            ret = stream->write(self->dest_stream, ZLIB_HEADER, ZLIB_HEADER_LEN, &err);
+        } else {
+            ret = stream->write(self->dest_stream, GZIP_HEADER, GZIP_HEADER_LEN, &err);
+        }
+        if (ret == MP_STREAM_ERROR) {
+            mp_raise_OSError(err);
+        }
+    }
+
+    // Write starting block.
+    zlib_start_block(&self->lz77.outbuf);
+
+    return MP_OBJ_FROM_PTR(self);
+}
+
+STATIC const mp_rom_map_elem_t compio_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_close), MP_ROM_PTR(&mp_stream_close_obj) },
+    { MP_ROM_QSTR(MP_QSTR_write), MP_ROM_PTR(&mp_stream_write_obj) },
+};
+STATIC MP_DEFINE_CONST_DICT(compio_locals_dict, compio_locals_dict_table);
+
+STATIC mp_uint_t compio_write(mp_obj_t self_in, const void *buf, mp_uint_t size, int *errcode) {
+    mp_obj_compio_t *self = MP_OBJ_TO_PTR(self_in);
+    self->input_len += size;
+    if (self->out_type == OUT_ZLIB) {
+        self->input_checksum = uzlib_adler32(buf, size, self->input_checksum);
+    } else if (self->out_type == OUT_GZIP) {
+        self->input_checksum = uzlib_crc32(buf, size, self->input_checksum);
+    }
+    uzlib_lz77_compress(&self->lz77, buf, size);
+    return size;
+}
+
+STATIC mp_uint_t compio_ioctl(mp_obj_t self_in, mp_uint_t request, uintptr_t arg, int *errcode) {
+    mp_obj_compio_t *self = MP_OBJ_TO_PTR(self_in);
+
+    if (request == MP_STREAM_CLOSE) {
+        if (self->dest_stream != MP_OBJ_NULL) {
+            zlib_finish_block(&self->lz77.outbuf);
+
+            const mp_stream_p_t *stream = mp_get_stream(self->dest_stream);
+
+            // Write footer if needed.
+            if (self->out_type != OUT_RAW) {
+                char footer[8];
+                size_t footer_len;
+                if (self->out_type == OUT_ZLIB) {
+                    put_be32(&footer[0], self->input_checksum);
+                    footer_len = 4;
+                } else {
+                    put_le32(&footer[0], ~self->input_checksum);
+                    put_le32(&footer[4], self->input_len);
+                    footer_len = 8;
+                }
+                mp_uint_t ret = stream->write(self->dest_stream, footer, footer_len, errcode);
+                if (ret == MP_STREAM_ERROR) {
+                    self->dest_stream = MP_OBJ_NULL;
+                    return ret;
+                }
+            }
+
+            // Don't close the stream (the caller may still want to write to it, or in
+            // the case of BytesIO call getvalue), instead just free the reference to it.
+            self->dest_stream = MP_OBJ_NULL;
+        }
+        return 0;
+    } else {
+        *errcode = MP_EINVAL;
+        return MP_STREAM_ERROR;
+    }
+}
+
+STATIC const mp_stream_p_t compio_stream_p = {
+    .write = compio_write,
+    .ioctl = compio_ioctl,
+};
+
+STATIC MP_DEFINE_CONST_OBJ_TYPE(
+    compio_type,
+    MP_QSTR_CompIO,
+    MP_TYPE_FLAG_NONE,
+    make_new, compio_make_new,
+    protocol, &compio_stream_p,
+    locals_dict, &compio_locals_dict
+    );
+
+STATIC void compress_out_byte(struct Outbuf *outbuf, uint8_t byte) {
+    vstr_add_byte(outbuf->dest_write_data, byte);
+}
+
+STATIC mp_obj_t mod_uzlib_compress(size_t n_args, const mp_obj_t *args) {
+    // Parse "data" argument.
+    mp_obj_t data = args[0];
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(data, &bufinfo, MP_BUFFER_READ);
+
+    // Parse "wbits" argument.
+    size_t hist_len;
+    out_type_t out_type = parse_wbits(n_args > 2 ? args[2] : MP_OBJ_NULL, &hist_len);
+
+    // Initialise compression object and state.
+    vstr_t vstr;
+    vstr_init(&vstr, bufinfo.len / 8);
+    struct uzlib_lz77_state lz77;
+    uzlib_lz77_init(&lz77, NULL, hist_len);
+    lz77.outbuf.dest_write_data = &vstr;
+    lz77.outbuf.dest_write_cb = compress_out_byte;
+
+    // Write header if needed.
+    if (out_type == OUT_ZLIB) {
+        vstr_add_strn(&vstr, ZLIB_HEADER, ZLIB_HEADER_LEN);
+    } else if (out_type == OUT_GZIP) {
+        vstr_add_strn(&vstr, GZIP_HEADER, GZIP_HEADER_LEN);
+    }
+
+    // Write starting block, compressed data, and finishing block.
+    zlib_start_block(&lz77.outbuf);
+    uzlib_lz77_compress(&lz77, bufinfo.buf, bufinfo.len);
+    zlib_finish_block(&lz77.outbuf);
+
+    // Write footer if needed.
+    if (out_type != OUT_RAW) {
+        char footer[8];
+        size_t footer_len;
+        if (out_type == OUT_ZLIB) {
+            uint32_t input_adler32 = uzlib_adler32(bufinfo.buf, bufinfo.len, 1);
+            put_be32(&footer[0], input_adler32);
+            footer_len = 4;
+        } else {
+            uint32_t input_crc32 = uzlib_crc32(bufinfo.buf, bufinfo.len, ~0);
+            put_le32(&footer[0], ~input_crc32);
+            put_le32(&footer[4], bufinfo.len);
+            footer_len = 8;
+        }
+        vstr_add_strn(&vstr, footer, footer_len);
+    }
+
+    // Create the resulting bytes object.
+    mp_obj_t res = mp_obj_new_bytes_from_vstr(&vstr);
+
+    return res;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_uzlib_compress_obj, 1, 3, mod_uzlib_compress);
+
+#endif // MICROPY_PY_UZLIB_COMPRESS
 
 typedef struct _mp_obj_decompio_t {
     mp_obj_base_t base;
@@ -212,6 +473,10 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_uzlib_decompress_obj, 1, 3, mod_u
 #if !MICROPY_ENABLE_DYNRUNTIME
 STATIC const mp_rom_map_elem_t mp_module_uzlib_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_uzlib) },
+    #if MICROPY_PY_UZLIB_COMPRESS
+    { MP_ROM_QSTR(MP_QSTR_compress), MP_ROM_PTR(&mod_uzlib_compress_obj) },
+    { MP_ROM_QSTR(MP_QSTR_CompIO), MP_ROM_PTR(&compio_type) },
+    #endif
     { MP_ROM_QSTR(MP_QSTR_decompress), MP_ROM_PTR(&mod_uzlib_decompress_obj) },
     { MP_ROM_QSTR(MP_QSTR_DecompIO), MP_ROM_PTR(&decompio_type) },
 };
@@ -235,5 +500,10 @@ MP_REGISTER_MODULE(MP_QSTR_uzlib, mp_module_uzlib);
 #include "lib/uzlib/tinfgzip.c"
 #include "lib/uzlib/adler32.c"
 #include "lib/uzlib/crc32.c"
+
+#if MICROPY_PY_UZLIB_COMPRESS
+#include "lib/uzlib/defl_static.c"
+#include "lib/uzlib/lz77.c"
+#endif
 
 #endif // MICROPY_PY_UZLIB
