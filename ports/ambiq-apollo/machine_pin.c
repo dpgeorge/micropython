@@ -32,7 +32,7 @@
 #include "shared/runtime/mpirq.h"
 #include "modmachine.h"
 #include "extmod/virtpin.h"
-#include "am_mcu_apollo.h"
+#include "pin.h"
 
 #define GPIO_MODE_IN (0)
 #define GPIO_MODE_OUT (1)
@@ -273,13 +273,13 @@ STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_
     if (args[ARG_mode].u_obj != mp_const_none) {
         mp_int_t mode = mp_obj_get_int(args[ARG_mode].u_obj);
         if (mode == GPIO_MODE_IN) {
-            cfg = (am_hal_gpio_pincfg_t)AM_HAL_GPIO_PINCFG_INPUT;
+            cfg = (am_hal_gpio_pincfg_t)AMAP_PIN_PINCFG_INPUT;
         } else if (mode == GPIO_MODE_OUT) {
-            cfg = (am_hal_gpio_pincfg_t)AM_HAL_GPIO_PINCFG_OUTPUT_WITH_READ;
+            cfg = (am_hal_gpio_pincfg_t)AMAP_PIN_PINCFG_OUTPUT;
         } else if (mode == GPIO_MODE_OPEN_DRAIN) {
-            cfg = (am_hal_gpio_pincfg_t)AM_HAL_GPIO_PINCFG_OPENDRAIN;
+            cfg = (am_hal_gpio_pincfg_t)AMAP_PIN_PINCFG_OPENDRAIN;
         } else if (mode == GPIO_MODE_TRISTATE) {
-            cfg = (am_hal_gpio_pincfg_t)AM_HAL_GPIO_PINCFG_TRISTATE;
+            cfg = (am_hal_gpio_pincfg_t)AMAP_PIN_PINCFG_TRISTATE;
         } else {
             // Alternate function.
             // TODO
@@ -550,22 +550,4 @@ mp_hal_pin_obj_t mp_hal_get_pin_obj(mp_obj_t pin_in) {
     }
     machine_pin_obj_t *pin = MP_OBJ_TO_PTR(pin_in);
     return pin->id;
-}
-
-void mp_hal_pin_input(mp_hal_pin_obj_t pin) {
-    am_hal_gpio_pincfg_t cfg;
-    cfg = (am_hal_gpio_pincfg_t)AM_HAL_GPIO_PINCFG_INPUT;
-    am_hal_gpio_pinconfig(pin, cfg);
-}
-
-void mp_hal_pin_output(mp_hal_pin_obj_t pin) {
-    am_hal_gpio_pincfg_t cfg;
-    cfg = (am_hal_gpio_pincfg_t)AM_HAL_GPIO_PINCFG_OUTPUT;
-    am_hal_gpio_pinconfig(pin, cfg);
-}
-
-void mp_hal_pin_open_drain(mp_hal_pin_obj_t pin) {
-    am_hal_gpio_pincfg_t cfg;
-    cfg = (am_hal_gpio_pincfg_t)AM_HAL_GPIO_PINCFG_OPENDRAIN;
-    am_hal_gpio_pinconfig(pin, cfg);
 }

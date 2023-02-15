@@ -72,6 +72,7 @@ SRC_C += \
 	modmachine.c \
 	modtime.c \
 	mphalport.c \
+	pin.c \
 	uart.c \
 	usbd.c \
 	tusb_port.c \
