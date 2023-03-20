@@ -129,7 +129,7 @@ SRC_C += $(addprefix lib/libm/,\
 	wf_tgamma.c \
 	)
 
-SRC_S += shared/runtime/gchelper_m3.s
+SRC_S += shared/runtime/gchelper_thumb2.s
 
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/am_hal_gpio.c
 $(BUILD)/$(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/am_hal_gpio.o: CFLAGS += -Wno-maybe-uninitialized
