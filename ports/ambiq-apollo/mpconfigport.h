@@ -2,6 +2,7 @@
 
 #define MICROPY_HW_BOARD_NAME                   "AMAP4PEVB"
 #define MICROPY_HW_MCU_NAME                     "AMAP4P"
+#define MICROPY_HW_ENABLE_USBDEV                (1)
 #define MICROPY_HW_USB_CDC                      (1)
 
 #define MICROPY_CONFIG_ROM_LEVEL                (MICROPY_CONFIG_ROM_LEVEL_EXTRA_FEATURES)
