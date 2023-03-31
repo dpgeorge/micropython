@@ -8,6 +8,14 @@
 #include "tusb.h"
 #include "modmachine.h"
 
+#if MICROPY_PY_LWIP
+#include "lwip/init.h"
+#include "lwip/apps/mdns.h"
+#if MICROPY_PY_NETWORK_CYW43
+#include "lib/cyw43-driver/src/cyw43.h"
+#endif
+#endif
+
 extern uint32_t _sstack, _estack, _sidata, _sdata, _edata, _sbss, _ebss;
 
 static char gc_heap[256 * 1024];
@@ -19,6 +27,28 @@ void amap_main(void) {
     mp_stack_set_top(&_estack);
     mp_stack_set_limit((char *)&_estack - (char *)&_sstack - 512);
     gc_init(&gc_heap[0], &gc_heap[MP_ARRAY_SIZE(gc_heap)]);
+
+    #if MICROPY_PY_LWIP
+    // lwIP doesn't allow to reinitialise itself by subsequent calls to this function
+    // because the system timeout list (next_timeout) is only ever reset by BSS clearing.
+    // So for now we only init the lwIP stack once on power-up.
+    lwip_init();
+    #if LWIP_MDNS_RESPONDER
+    mdns_resp_init();
+    #endif
+    #endif
+
+    #if MICROPY_PY_NETWORK_CYW43
+    {
+        cyw43_init(&cyw43_state);
+        uint8_t buf[8];
+        memcpy(&buf[0], "AMAP", 4);
+        //mp_hal_get_mac_ascii(MP_HAL_MAC_WLAN0, 8, 4, (char *)&buf[4]);
+        cyw43_wifi_ap_set_ssid(&cyw43_state, 8, buf);
+        cyw43_wifi_ap_set_auth(&cyw43_state, CYW43_AUTH_WPA2_AES_PSK);
+        cyw43_wifi_ap_set_password(&cyw43_state, 8, (const uint8_t *)"amap0123");
+    }
+    #endif
 
     #if 0
     char buf[4];
@@ -106,3 +136,32 @@ void MP_WEAK __assert_func(const char *file, int line, const char *func, const c
     __fatal_error("Assertion failed");
 }
 #endif
+
+// Yasmarang random number generator by Ilya Levin
+// http://www.literatecode.com/yasmarang
+uint32_t amap_rng_get(void) {
+    static bool seeded = false;
+    static uint32_t pad = 0, n = 0, d = 0;
+    static uint8_t dat = 0;
+
+    if (!seeded) {
+        seeded = true;
+        /*
+        rtc_init_finalise();
+        pad = *(uint32_t *)MP_HAL_UNIQUE_ID_ADDRESS ^ SysTick->VAL;
+        n = RTC->TR;
+        d = RTC->SSR;
+        */
+        pad = SysTick->VAL;
+        n = SysTick->VAL;
+        d = SysTick->VAL;
+    }
+
+    pad += dat + d * n;
+    pad = (pad << 3) + (pad >> 29);
+    n = pad | 2;
+    d ^= (pad << 31) + (pad >> 1);
+    dat ^= (char)pad ^ (d >> 8) ^ 1;
+
+    return pad ^ (d << 5) ^ (pad >> 18) ^ (dat << 1);
+}

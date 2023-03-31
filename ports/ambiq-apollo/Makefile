@@ -6,6 +6,10 @@ include ../../py/mkenv.mk
 
 # MicroPython feature configurations.
 MICROPY_ROM_TEXT_COMPRESSION ?= 1
+MICROPY_VFS_FAT ?= 1
+MICROPY_VFS_LFS2 ?= 1
+MICROPY_PY_LWIP ?= 1
+MICROPY_PY_NETWORK_CYW43 ?= 0
 
 # qstr definitions (must come before including py.mk).
 QSTR_DEFS = qstrdefsport.h
@@ -33,17 +37,20 @@ Reset\n\
 LoadFile "$(BUILD)/firmware.hex"\n\
 Exit'
 
+INC += -I.
+INC += -I$(TOP)
+INC += -I$(BUILD)
+INC += -I$(TOP)/lib/cmsis/inc
+INC += -I$(AMBIQ_SUITE_REL)/CMSIS/AmbiqMicro/Include
+INC += -I$(AMBIQ_SUITE_REL)/mcu/apollo4p
+INC += -I$(AMBIQ_SUITE_REL)/utils
+INC += -Ilwip_inc
+
+CFLAGS += $(INC)
 CFLAGS += -mthumb -mtune=cortex-m4 -mcpu=cortex-m4
 CFLAGS += -mfpu=fpv4-sp-d16 -mfloat-abi=hard
 CFLAGS += -fsingle-precision-constant -Wdouble-promotion -Wfloat-conversion
 CFLAGS += -Wall -Werror -std=c99 -nostdlib $(COPT)
-
-CFLAGS += -I.
-CFLAGS += -I$(TOP)
-CFLAGS += -I$(BUILD)
-CFLAGS += -I$(TOP)/lib/cmsis/inc
-CFLAGS += -I$(AMBIQ_SUITE_REL)/CMSIS/AmbiqMicro/Include
-CFLAGS += -I$(AMBIQ_SUITE_REL)/mcu/apollo4p
 
 LDFLAGS += -nostdlib -T ambiq_apollo4p.ld -Map=$@.map --cref --gc-sections
 
@@ -67,18 +74,23 @@ LIBS += "$(shell $(CC) $(CFLAGS) -print-libgcc-file-name)"
 SRC_C += \
 	am_bsp.c \
 	amap.c \
+	fatfs_port.c \
 	machine_pin.c \
 	main.c \
 	modmachine.c \
 	modtime.c \
 	mphalport.c \
+	mpnetworkport.c \
 	pin.c \
+	sdio.c \
+	tusb_port.c \
 	uart.c \
 	usbd.c \
-	tusb_port.c \
 	dcd_apollo4.c \
 	shared/libc/printf.c \
 	shared/libc/string0.c \
+	shared/netutils/dhcpserver.c \
+	shared/netutils/trace.c \
 	shared/readline/readline.c \
 	shared/runtime/gchelper_native.c \
 	shared/runtime/interrupt_char.c \
@@ -138,10 +150,14 @@ SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/am_hal_queue.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/am_hal_usb.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_bootrom_helper.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_cachectrl.c
+SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_card.c
+SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_card_host.c
+$(BUILD)/$(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_card_host.o: CFLAGS += -Wno-maybe-uninitialized
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_clkgen.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_interrupt.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_mram.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_rtc.c
+SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_sdhc.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_uart.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_utils.c
 

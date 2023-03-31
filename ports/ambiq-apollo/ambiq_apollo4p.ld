@@ -21,43 +21,41 @@ SECTIONS
     {
         . = ALIGN(4);
         KEEP(*(.isr_vector)) /* isr vector table */
-        *(.text)           /* .text sections (code) */
         *(.text*)          /* .text* sections (code) */
-        *(.rodata)         /* .rodata sections (constants, strings, etc.) */
         *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
-
         . = ALIGN(4);
         _etext = .;        /* define a global symbol at end of code */
-        _sidata = _etext;  /* This is used by the startup in order to initialize the .data secion */
     } >FLASH
 
-    /* This is the initialized data section
-    The program executes knowing that the data is in the RAM
-    but the loader puts the initial values in the FLASH (inidata).
-    It is one task of the startup to copy the initial values from FLASH to RAM. */
-    .data : AT ( _sidata )
+    /* For C++ exception handling */
+    .ARM :
+    {
+        __exidx_start = .;
+        *(.ARM.exidx*)
+        __exidx_end = .;
+    } >FLASH
+
+    /* Used by the start-up code to initialise data */
+    _sidata = LOADADDR(.data);
+
+    /* Initialised data section, start-up code will copy it from flash to RAM */
+    .data :
     {
         . = ALIGN(4);
-        _sdata = .;        /* create a global symbol at data start; used by startup code in order to initialise the .data section in RAM */
-        *(.data)           /* .data sections */
-        *(.data*)          /* .data* sections */
-
+        _sdata = .;
+        *(.data*)
         . = ALIGN(4);
-        _edata = .;        /* define a global symbol at data end; used by startup code in order to initialise the .data section in RAM */
-    } >RAM
+        _edata = .;
+    } >RAM AT> FLASH
 
-    /* Uninitialized data section */
+    /* Zeroed-out data section */
     .bss :
     {
         . = ALIGN(4);
-        _sbss = .;         /* define a global symbol at bss start; used by startup code */
-        *(.bss)
+        _sbss = .;
         *(.bss*)
         *(COMMON)
-
         . = ALIGN(4);
-        _ebss = .;         /* define a global symbol at bss end; used by startup code */
+        _ebss = .;
     } >RAM
-
-    .ARM.attributes 0 : { *(.ARM.attributes) }
 }

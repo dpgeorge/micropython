@@ -107,9 +107,6 @@ void mp_hal_delay_ms(mp_uint_t ms) {
         MICROPY_EVENT_POLL_HOOK;
     } while (ticks_ms - start < ms);
 }
-void am_util_delay_ms(uint32_t ms) {
-    mp_hal_delay_ms(ms);
-}
 
 void mp_hal_delay_us(mp_uint_t us) {
     // TODO this assumes IRQs are enabled, so mp_hal_ticks_us works
@@ -126,4 +123,17 @@ uint64_t mp_hal_time_ns(void) {
         t.ui32Hour, t.ui32Minute, t.ui32Second);
     s = s * 100ULL + t.ui32Hundredths;
     return s * 10000000ULL;
+}
+
+void am_util_delay_ms(uint32_t ms) {
+    //mp_hal_delay_ms(ms);
+    // TODO this assumes IRQs are enabled, so ticks_ms increases at 1Hz
+    uint32_t start = ticks_ms;
+    do {
+        //__WFI();
+    } while (ticks_ms - start < ms);
+}
+
+void am_util_delay_us(uint32_t us) {
+    mp_hal_delay_us(us);
 }
