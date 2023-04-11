@@ -78,6 +78,7 @@ SRC_C += \
 	machine_pin.c \
 	main.c \
 	modmachine.c \
+	modmemtest.c \
 	modtime.c \
 	mphalport.c \
 	mpnetworkport.c \
@@ -101,6 +102,7 @@ SRC_C += \
 	shared/tinyusb/mp_cdc_common.c \
 	shared/tinyusb/mp_usbd.c \
 	drivers/bus/softspi.c \
+	am_devices_mspi_psram_aps12808l.c \
 
 SRC_C += \
 	lib/tinyusb/src/class/cdc/cdc_device.c \
@@ -154,8 +156,11 @@ SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_card.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_card_host.c
 $(BUILD)/$(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_card_host.o: CFLAGS += -Wno-maybe-uninitialized
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_clkgen.c
+SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_cmdq.c
+SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_fault.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_interrupt.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_mram.c
+SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_mspi.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_rtc.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_sdhc.c
 SRC_C += $(AMBIQ_SUITE_TOP)/mcu/apollo4p/hal/mcu/am_hal_uart.c
@@ -165,6 +170,7 @@ SRC_QSTR += \
 	machine_pin.c \
 	main.c \
 	modmachine.c \
+	modmemtest.c \
 	modtime.c \
 	shared/readline/readline.c \
 	shared/runtime/pyexec.c \

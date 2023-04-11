@@ -18,5 +18,17 @@
 #define amap_pin_QSPI2_CLK                  (45)
 #define amap_pin_QSPI2_CS                   (56)
 
+#define amap_pin_PSRAM_CE0                  (57)
+#define amap_pin_PSRAM_D0                   (64)
+#define amap_pin_PSRAM_D1                   (65)
+#define amap_pin_PSRAM_D2                   (66)
+#define amap_pin_PSRAM_D3                   (67)
+#define amap_pin_PSRAM_D4                   (68)
+#define amap_pin_PSRAM_D5                   (69)
+#define amap_pin_PSRAM_D6                   (70)
+#define amap_pin_PSRAM_D7                   (71)
+#define amap_pin_PSRAM_SCK                  (72)
+#define amap_pin_PSRAM_DQS0DM0              (73)
+
 // Low to select SD card, high to select Murata 1DX.
 #define amap_pin_SDIO_MULTIPLEXER_SELECT    (74)
