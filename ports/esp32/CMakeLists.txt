@@ -38,13 +38,6 @@ elseif (NOT MICROPY_FROZEN_MANIFEST)
     set(MICROPY_FROZEN_MANIFEST ${MICROPY_PORT_DIR}/boards/manifest.py)
 endif()
 
-# Add sdkconfig fragments that depend on the IDF version.
-if(IDF_VERSION_MAJOR EQUAL 4 AND IDF_VERSION_MINOR LESS 2)
-    set(SDKCONFIG_DEFAULTS ${SDKCONFIG_DEFAULTS} boards/sdkconfig.nimble_core0)
-else()
-    set(SDKCONFIG_DEFAULTS ${SDKCONFIG_DEFAULTS} boards/sdkconfig.nimble_core1)
-endif()
-
 # Concatenate all sdkconfig files into a combined one for the IDF to use.
 file(WRITE ${CMAKE_BINARY_DIR}/sdkconfig.combined.in "")
 foreach(SDKCONFIG_DEFAULT ${SDKCONFIG_DEFAULTS})

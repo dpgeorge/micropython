@@ -35,16 +35,9 @@
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "esp_task.h"
-#include "soc/cpu.h"
+#include "esp_event.h"
 #include "esp_log.h"
-
-#if CONFIG_IDF_TARGET_ESP32
-#include "esp32/spiram.h"
-#elif CONFIG_IDF_TARGET_ESP32S2
-#include "esp32s2/spiram.h"
-#elif CONFIG_IDF_TARGET_ESP32S3
-#include "esp32s3/spiram.h"
-#endif
+#include "esp_psram.h"
 
 #include "py/stackctrl.h"
 #include "py/nlr.h"
@@ -88,7 +81,7 @@ int vprintf_null(const char *format, va_list ap) {
 }
 
 void mp_task(void *pvParameter) {
-    volatile uint32_t sp = (uint32_t)get_sp();
+    volatile uint32_t sp = (uint32_t)esp_cpu_get_sp();
     #if MICROPY_PY_THREAD
     mp_thread_init(pxTaskGetStackStart(NULL), MP_TASK_STACK_SIZE / sizeof(uintptr_t));
     #endif
@@ -101,6 +94,11 @@ void mp_task(void *pvParameter) {
     uart_stdout_init();
     #endif
     machine_init();
+
+    esp_err_t err = esp_event_loop_create_default();
+    if (err != ESP_OK) {
+        ESP_LOGE("esp_init", "can't create event loop: 0x%x\n", err);
+    }
 
     size_t mp_task_heap_size;
     void *mp_task_heap = NULL;
@@ -136,13 +134,7 @@ void mp_task(void *pvParameter) {
     if (mp_task_heap == NULL) {
         // Allocate the uPy heap using malloc and get the largest available region,
         // limiting to 1/2 total available memory to leave memory for the OS.
-        #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 1, 0)
         size_t heap_total = heap_caps_get_total_size(MALLOC_CAP_8BIT);
-        #else
-        multi_heap_info_t info;
-        heap_caps_get_info(&info, MALLOC_CAP_8BIT);
-        size_t heap_total = info.total_free_bytes + info.total_allocated_bytes;
-        #endif
         mp_task_heap_size = MIN(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT), heap_total / 2);
         mp_task_heap = malloc(mp_task_heap_size);
     }

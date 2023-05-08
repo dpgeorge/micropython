@@ -32,6 +32,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_timer.h"
 
 #include "py/obj.h"
 #include "py/objstr.h"

@@ -6,9 +6,11 @@
 
 #include <stdint.h>
 #include <alloca.h>
+#include "esp_random.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "driver/i2s.h"
+#include "esp_wifi_types.h"
 
 #ifndef MICROPY_CONFIG_ROM_LEVEL
 #define MICROPY_CONFIG_ROM_LEVEL            (MICROPY_CONFIG_ROM_LEVEL_EXTRA_FEATURES)
@@ -131,10 +133,10 @@
 #define MICROPY_PY_NETWORK_WLAN             (1)
 #endif
 #ifndef MICROPY_HW_ENABLE_SDCARD
-#define MICROPY_HW_ENABLE_SDCARD            (1)
+#define MICROPY_HW_ENABLE_SDCARD            (0) // TODO
 #endif
 #define MICROPY_HW_SOFTSPI_MIN_DELAY        (0)
-#define MICROPY_HW_SOFTSPI_MAX_BAUDRATE     (ets_get_cpu_frequency() * 1000000 / 200) // roughly
+#define MICROPY_HW_SOFTSPI_MAX_BAUDRATE     (esp_rom_get_cpu_ticks_per_us() * 1000000 / 200) // roughly
 #define MICROPY_PY_USSL                     (1)
 #define MICROPY_SSL_MBEDTLS                 (1)
 #define MICROPY_PY_USSL_FINALISER           (1)
@@ -165,8 +167,8 @@ void *esp_native_code_commit(void *, size_t, void *);
 // the only disable interrupts on the current CPU.  To full manage exclusion
 // one should use portENTER_CRITICAL/portEXIT_CRITICAL instead.
 #include "freertos/FreeRTOS.h"
-#define MICROPY_BEGIN_ATOMIC_SECTION() portENTER_CRITICAL_NESTED()
-#define MICROPY_END_ATOMIC_SECTION(state) portEXIT_CRITICAL_NESTED(state)
+#define MICROPY_BEGIN_ATOMIC_SECTION() portSET_INTERRUPT_MASK_FROM_ISR()
+#define MICROPY_END_ATOMIC_SECTION(state) portCLEAR_INTERRUPT_MASK_FROM_ISR(state)
 
 #if MICROPY_PY_USOCKET_EVENTS
 #define MICROPY_PY_USOCKET_EVENTS_HANDLER extern void usocket_events_handler(void); usocket_events_handler();
@@ -222,11 +224,11 @@ typedef long mp_off_t;
 #endif
 
 #ifndef MICROPY_HW_ENABLE_MDNS_QUERIES
-#define MICROPY_HW_ENABLE_MDNS_QUERIES      (1)
+#define MICROPY_HW_ENABLE_MDNS_QUERIES      (0)
 #endif
 
 #ifndef MICROPY_HW_ENABLE_MDNS_RESPONDER
-#define MICROPY_HW_ENABLE_MDNS_RESPONDER    (1)
+#define MICROPY_HW_ENABLE_MDNS_RESPONDER    (0)
 #endif
 
 #ifndef MICROPY_BOARD_STARTUP
@@ -236,7 +238,7 @@ typedef long mp_off_t;
 void boardctrl_startup(void);
 
 #ifndef MICROPY_PY_NETWORK_LAN
-#if (ESP_IDF_VERSION_MAJOR == 4) && (ESP_IDF_VERSION_MINOR >= 1) && (CONFIG_IDF_TARGET_ESP32 || (CONFIG_ETH_USE_SPI_ETHERNET && (CONFIG_ETH_SPI_ETHERNET_KSZ8851SNL || CONFIG_ETH_SPI_ETHERNET_DM9051 || CONFIG_ETH_SPI_ETHERNET_W5500)))
+#if CONFIG_IDF_TARGET_ESP32 || (CONFIG_ETH_USE_SPI_ETHERNET && (CONFIG_ETH_SPI_ETHERNET_KSZ8851SNL || CONFIG_ETH_SPI_ETHERNET_DM9051 || CONFIG_ETH_SPI_ETHERNET_W5500))
 #define MICROPY_PY_NETWORK_LAN              (1)
 #else
 #define MICROPY_PY_NETWORK_LAN              (0)

@@ -41,7 +41,6 @@
 
 #include "esp_wifi.h"
 #include "esp_log.h"
-#include "mdns.h"
 
 #if MICROPY_PY_NETWORK_WLAN
 
@@ -49,8 +48,10 @@
 #error WIFI_MODE_STA and WIFI_MODE_AP are supposed to be bitfields!
 #endif
 
-STATIC const wlan_if_obj_t wlan_sta_obj;
-STATIC const wlan_if_obj_t wlan_ap_obj;
+const mp_obj_type_t wlan_if_type;
+
+STATIC wlan_if_obj_t wlan_sta_obj;
+STATIC wlan_if_obj_t wlan_ap_obj;
 
 // Set to "true" if esp_wifi_start() was called
 static bool wifi_started = false;
@@ -75,34 +76,22 @@ static uint8_t wifi_sta_reconnects;
 
 // This function is called by the system-event task and so runs in a different
 // thread to the main MicroPython task.  It must not raise any Python exceptions.
-void network_wlan_event_handler(system_event_t *event) {
-    switch (event->event_id) {
-        case SYSTEM_EVENT_STA_START:
+static void network_wlan_wifi_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    switch (event_id) {
+        case WIFI_EVENT_STA_START:
             ESP_LOGI("wifi", "STA_START");
             wifi_sta_reconnects = 0;
             break;
-        case SYSTEM_EVENT_STA_CONNECTED:
+
+        case WIFI_EVENT_STA_CONNECTED:
             ESP_LOGI("network", "CONNECTED");
             break;
-        case SYSTEM_EVENT_STA_GOT_IP:
-            ESP_LOGI("network", "GOT_IP");
-            wifi_sta_connected = true;
-            wifi_sta_disconn_reason = 0; // Success so clear error. (in case of new error will be replaced anyway)
-            #if MICROPY_HW_ENABLE_MDNS_QUERIES || MICROPY_HW_ENABLE_MDNS_RESPONDER
-            if (!mdns_initialised) {
-                mdns_init();
-                #if MICROPY_HW_ENABLE_MDNS_RESPONDER
-                mdns_hostname_set(mod_network_hostname);
-                mdns_instance_name_set(mod_network_hostname);
-                #endif
-                mdns_initialised = true;
-            }
-            #endif
-            break;
-        case SYSTEM_EVENT_STA_DISCONNECTED: {
+
+        case WIFI_EVENT_STA_DISCONNECTED: {
             // This is a workaround as ESP32 WiFi libs don't currently
             // auto-reassociate.
-            system_event_sta_disconnected_t *disconn = &event->event_info.disconnected;
+
+            wifi_event_sta_disconnected_t *disconn = event_data;
             char *message = "";
             wifi_sta_disconn_reason = disconn->reason;
             switch (disconn->reason) {
@@ -152,6 +141,29 @@ void network_wlan_event_handler(system_event_t *event) {
     }
 }
 
+static void network_wlan_ip_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    switch (event_id) {
+        case IP_EVENT_STA_GOT_IP:
+            ESP_LOGI("network", "GOT_IP");
+            wifi_sta_connected = true;
+            wifi_sta_disconn_reason = 0; // Success so clear error. (in case of new error will be replaced anyway)
+            #if MICROPY_HW_ENABLE_MDNS_QUERIES || MICROPY_HW_ENABLE_MDNS_RESPONDER
+            if (!mdns_initialised) {
+                mdns_init();
+                #if MICROPY_HW_ENABLE_MDNS_RESPONDER
+                mdns_hostname_set(mod_network_hostname);
+                mdns_instance_name_set(mod_network_hostname);
+                #endif
+                mdns_initialised = true;
+            }
+            #endif
+            break;
+
+        default:
+            break;
+    }
+}
+
 STATIC void require_if(mp_obj_t wlan_if, int if_no) {
     wlan_if_obj_t *self = MP_OBJ_TO_PTR(wlan_if);
     if (self->if_id != if_no) {
@@ -159,13 +171,25 @@ STATIC void require_if(mp_obj_t wlan_if, int if_no) {
     }
 }
 
-void esp_initialise_wifi() {
+void esp_initialise_wifi(void) {
     static int wifi_initialized = 0;
     if (!wifi_initialized) {
+        esp_exceptions(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, network_wlan_wifi_event_handler, NULL, NULL));
+        esp_exceptions(esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, network_wlan_ip_event_handler, NULL, NULL));
+
+        wlan_sta_obj.base.type = &wlan_if_type;
+        wlan_sta_obj.if_id = WIFI_IF_STA;
+        wlan_sta_obj.netif = esp_netif_create_default_wifi_sta();
+
+        wlan_ap_obj.base.type = &wlan_if_type;
+        wlan_ap_obj.if_id = WIFI_IF_AP;
+        wlan_ap_obj.netif = esp_netif_create_default_wifi_ap();
+
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
         ESP_LOGD("modnetwork", "Initializing WiFi");
         esp_exceptions(esp_wifi_init(&cfg));
         esp_exceptions(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+
         ESP_LOGD("modnetwork", "Initialized");
         wifi_initialized = 1;
     }
@@ -217,6 +241,8 @@ STATIC mp_obj_t network_wlan_active(size_t n_args, const mp_obj_t *args) {
         // kind of race condition, which is not yet found. But at least
         // this small delay seems not hurt much, since wlan.active() is
         // usually not called in a time critical part of the code.
+        // TODO: WIFI_EVENT_STA_START must be received before esp_wifi_connect() can be called,
+        // so maybe that's the reason for the error.
         mp_hal_delay_ms(1);
     }
 
@@ -261,7 +287,7 @@ STATIC mp_obj_t network_wlan_connect(size_t n_args, const mp_obj_t *pos_args, mp
         esp_exceptions(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config));
     }
 
-    esp_exceptions(tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, mod_network_hostname));
+    esp_exceptions(esp_netif_set_hostname(wlan_sta_obj.netif, mod_network_hostname));
 
     wifi_sta_reconnects = 0;
     // connect to the WiFi AP
@@ -651,8 +677,5 @@ MP_DEFINE_CONST_OBJ_TYPE(
     MP_TYPE_FLAG_NONE,
     locals_dict, &wlan_if_locals_dict
     );
-
-STATIC const wlan_if_obj_t wlan_sta_obj = {{&wlan_if_type}, WIFI_IF_STA};
-STATIC const wlan_if_obj_t wlan_ap_obj = {{&wlan_if_type}, WIFI_IF_AP};
 
 #endif // MICROPY_PY_NETWORK_WLAN
