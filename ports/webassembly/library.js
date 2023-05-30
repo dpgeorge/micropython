@@ -35,6 +35,8 @@ mergeInto(LibraryManager.library, {
         }
     },
 
+    mp_js_ticks_ms__postset: "var MP_JS_EPOCH = Date.now()",
+
     mp_js_ticks_ms: function() {
         return Date.now() - MP_JS_EPOCH;
     },
