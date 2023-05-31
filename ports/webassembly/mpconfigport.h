@@ -29,7 +29,13 @@
 
 // options to control how MicroPython is built
 
-#define MICROPY_CONFIG_ROM_LEVEL (MICROPY_CONFIG_ROM_LEVEL_EXTRA_FEATURES)
+#define MICROPY_CONFIG_ROM_LEVEL (MICROPY_CONFIG_ROM_LEVEL_FULL_FEATURES)
+
+extern const struct _mp_print_t mp_stderr_print;
+#define MICROPY_ERROR_PRINTER (&mp_stderr_print)
+
+void mp_hal_stdout_tx_strn_cooked_pyscript(const char *str, unsigned int len);
+#define MP_PLAT_PRINT_STRN(str, len) mp_hal_stdout_tx_strn_cooked_pyscript(str, len)
 
 // You can disable the built-in MicroPython compiler by setting the following
 // config option to 0.  If you do this then you won't get a REPL prompt, but you
@@ -54,7 +60,7 @@
 #endif
 #define MICROPY_VFS_POSIX           (MICROPY_VFS)
 #define MICROPY_PY_SYS_PLATFORM     "webassembly"
-#define MICROPY_PY_SYS_STDFILES     (0)
+//#define MICROPY_PY_SYS_STDFILES     (0)
 
 #define MICROPY_EVENT_POLL_HOOK \
     do { \

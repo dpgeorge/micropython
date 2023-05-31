@@ -4,8 +4,15 @@ CROSS = 0
 
 QSTR_DEFS = qstrdefsport.h
 
+include pyscript/pyscript.mk
+
 include $(TOP)/py/py.mk
 include $(TOP)/extmod/extmod.mk
+
+ifneq ($(FROZEN_MANIFEST),)
+CFLAGS += -DMICROPY_QSTR_EXTRA_POOL=mp_qstr_frozen_const_pool
+CFLAGS += -DMICROPY_MODULE_FROZEN_MPY
+endif
 
 CC = emcc
 LD = emcc
@@ -25,7 +32,7 @@ SRC_SHARED = $(addprefix shared/,\
 	readline/readline.c \
 	)
 
-SRC_C = \
+SRC_C += \
 	main.c \
 	mphalport.c \
 
@@ -37,7 +44,7 @@ OBJ += $(PY_O)
 OBJ += $(addprefix $(BUILD)/, $(SRC_SHARED:.c=.o))
 OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
 
-JSFLAGS += -s ASYNCIFY
+#JSFLAGS += -s ASYNCIFY
 JSFLAGS += -s EXPORTED_FUNCTIONS="\
 	_mp_js_init,\
 	_mp_js_init_repl,\
