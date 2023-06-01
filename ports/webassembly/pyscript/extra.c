@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "py/compile.h"
+#include "py/gc.h"
 #include "py/runtime.h"
 #include "pyscript/proxy_c.h"
 
@@ -39,7 +40,12 @@ static mp_uint_t mp_reader_mem_dedent_readbyte(void *data) {
     if (reader->cur < reader->end) {
         byte c = *reader->cur++;
         if (c == '\n') {
-            reader->cur += reader->dedent_prefix;
+            for (size_t i = 0; i < reader->dedent_prefix; ++i) {
+                if (*reader->cur == '\n') {
+                    break;
+                }
+                ++reader->cur;
+            }
         }
         //mp_printf(MICROPY_ERROR_PRINTER, "CH<%c>\n", c);
         return c;
@@ -109,10 +115,14 @@ void mp_js_do_import(const char *name, uint32_t *out) {
 }
 
 void mp_js_do_exec(const char *src, uint32_t *out) {
+    // Collect at the top-level, where there are no root pointers from stack/registers.
+    gc_collect_start();
+    gc_collect_end();
+
     mp_parse_input_kind_t input_kind = MP_PARSE_FILE_INPUT;
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0) {
-        mp_printf(MICROPY_ERROR_PRINTER, "run %s\n", src);
+        //mp_printf(MICROPY_ERROR_PRINTER, "run %s\n", src);
         mp_lexer_t *lex = mp_lexer_new_from_str_len_dedent(MP_QSTR__lt_stdin_gt_, src, strlen(src), 0);
         qstr source_name = lex->source_name;
         mp_parse_tree_t parse_tree = mp_parse(lex, input_kind);

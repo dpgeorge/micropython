@@ -1,7 +1,7 @@
-async function loadMicroPython(options) {
-    const {heapsize} = Object.assign({heapsize: 64 * 1024}, options);
+export async function loadMicroPython(options) {
+    const {heapsize, url} = Object.assign({heapsize: 1024 * 1024}, options);
     const Module = {};
-    Module.locateFile = (path) => "build/" + path;
+    Module.locateFile = (path, scriptDirectory) => url || path;
     const moduleLoaded = new Promise((r) => (Module.postRun = r));
     _createMicroPythonModule(Module);
     await moduleLoaded;
