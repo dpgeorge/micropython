@@ -66,7 +66,8 @@ void convert_mp_to_js_exc_cside(void *exc, uint32_t *out) {
     vstr_t vstr;
     mp_print_t print;
     vstr_init_print(&vstr, 64, &print);
-    mp_obj_print_helper(&print, MP_OBJ_FROM_PTR(exc), PRINT_EXC);
+    //mp_obj_print_helper(&print, MP_OBJ_FROM_PTR(exc), PRINT_EXC);
+    mp_obj_print_exception(&print, MP_OBJ_FROM_PTR(exc));
     mp_obj_print_exception(MICROPY_ERROR_PRINTER, MP_OBJ_FROM_PTR(exc));
     char *s = malloc(vstr_len(&vstr) + 1);
     memcpy(s, vstr_str(&vstr), vstr_len(&vstr));

@@ -84,12 +84,28 @@ EM_JS(int, call1, (int f_ref, uint32_t *a0, uint32_t *out), {
     convert_js_to_mp_obj_jsside(ret, out);
 });
 
-EM_JS(void, call1_kwarg, (int f_ref, const char *str, uint32_t *arg, uint32_t *out), {
+EM_JS(void, call0_kwarg, (int f_ref, uint32_t n_kw, uint32_t *key, uint32_t *value, uint32_t *out), {
     let f = proxy_js_ref[f_ref];
-    let arg0 = UTF8ToString(str);
     let a = {};
-    a[arg0] = convert_mp_to_js_obj_jsside(arg);
+    for (let i = 0; i < n_kw; ++i) {
+        let k = UTF8ToString(getValue(key + i * 4, "i32"));
+        let v = convert_mp_to_js_obj_jsside(value + i * 3 * 4);
+        a[k] = v;
+    }
     let ret = f(a);
+    convert_js_to_mp_obj_jsside(ret, out);
+});
+
+EM_JS(void, call1_kwarg, (int f_ref, uint32_t *arg0, uint32_t n_kw, uint32_t *key, uint32_t *value, uint32_t *out), {
+    let f = proxy_js_ref[f_ref];
+    let a0 = convert_mp_to_js_obj_jsside(arg0);
+    let a = {};
+    for (let i = 0; i < n_kw; ++i) {
+        let k = UTF8ToString(getValue(key + i * 4, "i32"));
+        let v = convert_mp_to_js_obj_jsside(value + i * 3 * 4);
+        a[k] = v;
+    }
+    let ret = f(a0, a);
     convert_js_to_mp_obj_jsside(ret, out);
 });
 
@@ -169,11 +185,22 @@ STATIC mp_obj_t jsobj_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const m
     if (n_kw == 0) {
         mp_arg_check_num(n_args, n_kw, 0, 2, false);
     } else {
-        mp_arg_check_num(n_args, n_kw, 0, 0, true);
-        uint32_t arg1[3];
-        convert_mp_to_js_obj_cside(args[1], arg1);
+        mp_arg_check_num(n_args, n_kw, 0, 1, true);
+        uint32_t key[n_kw];
+        uint32_t value[PVN * n_kw];
+        for (int i = 0; i < n_kw; ++i) {
+            key[i] = (uintptr_t)mp_obj_str_get_str(args[n_args + i * 2]);
+            convert_mp_to_js_obj_cside(args[n_args + i * 2 + 1], &value[i * PVN]);
+        }
         uint32_t out[3];
-        call1_kwarg(self->ref, mp_obj_str_get_str(args[0]), arg1, out);
+        if (n_args == 0) {
+            call0_kwarg(self->ref, n_kw, key, value, out);
+        } else {
+            // n_args == 1
+            uint32_t arg0[PVN];
+            convert_mp_to_js_obj_cside(args[0], arg0);
+            call1_kwarg(self->ref, arg0, n_kw, key, value, out);
+        }
         return convert_js_to_mp_obj_cside(out);
     }
 
