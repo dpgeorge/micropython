@@ -1,7 +1,33 @@
 export async function loadMicroPython(options) {
-    const {heapsize, url} = Object.assign({heapsize: 1024 * 1024}, options);
+    const {heapsize, url, stdin, stdout, stderr} = Object.assign({heapsize: 1024 * 1024}, options);
     const Module = {};
     Module.locateFile = (path, scriptDirectory) => url || path;
+    Module._textDecoder = new TextDecoder();
+    if (stdin !== undefined) {
+        Module.stdin = stdin;
+    }
+    if (stdout !== undefined) {
+        Module._stdoutBuffer = [];
+        Module.stdout = function(c) {
+            if (c == 10) {
+                stdout(Module._textDecoder.decode(new Uint8Array(Module._stdoutBuffer)));
+                Module._stdoutBuffer = [];
+            } else {
+                Module._stdoutBuffer.push(c);
+            }
+        };
+    }
+    if (stderr !== undefined) {
+        Module._stderrBuffer = [];
+        Module.stderr = function(c) {
+            if (c == 10) {
+                stderr(Module._textDecoder.decode(new Uint8Array(Module._stderrBuffer)));
+                Module._stderrBuffer = [];
+            } else {
+                Module._stderrBuffer.push(c);
+            }
+        };
+    }
     const moduleLoaded = new Promise((r) => (Module.postRun = r));
     _createMicroPythonModule(Module);
     await moduleLoaded;
@@ -12,9 +38,6 @@ export async function loadMicroPython(options) {
     return {
         _module: Module,
         FS : Module.FS,
-        globals: {}, // TODO should be a combination of __main__.__dict__ and builtins.__dict__
-        registerComlink(comlink) {
-        },
         registerJsModule(name, module) {
             const value = Module._malloc(3 * 4);
             convert_js_to_mp_obj_jsside(module, value);
