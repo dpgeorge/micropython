@@ -1,3 +1,7 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+var __dirname = "";
+
 export async function loadMicroPython(options) {
     const {heapsize, url, stdin, stdout, stderr} = Object.assign({heapsize: 1024 * 1024}, options);
     const Module = {};

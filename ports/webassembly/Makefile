@@ -59,9 +59,9 @@ JSFLAGS += -s EXPORTED_RUNTIME_METHODS="\
 JSFLAGS += -s --memory-init-file 0
 JSFLAGS += --js-library library.js
 
-all: $(BUILD)/micropython.js
+all: $(BUILD)/micropython.mjs
 
-$(BUILD)/micropython.js: $(OBJ) library.js $(SRC_JS)
+$(BUILD)/micropython.mjs: $(OBJ) library.js $(SRC_JS)
 	$(ECHO) "LINK $@"
 	$(Q)emcc $(LDFLAGS) -o $@ $(OBJ) $(JSFLAGS)
 	$(Q)cat $(SRC_JS) >> $@
