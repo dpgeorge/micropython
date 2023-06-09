@@ -116,8 +116,13 @@ EM_JS(int, call2, (int f_ref, uint32_t *a0, uint32_t *a1, uint32_t *out), {
     convert_js_to_mp_obj_jsside(ret, out);
 });
 
-EM_JS(void, js_reflect_construct, (int a0_ref, const char *a1, uint32_t *out), {
-    const ret = Reflect.construct(proxy_js_ref[a0_ref], [UTF8ToString(a1)]);
+EM_JS(void, js_reflect_construct, (int f_ref, uint32_t n_args, uint32_t *args, uint32_t *out), {
+    const f = proxy_js_ref[f_ref];
+    const as = [];
+    for (let i = 0; i < n_args; ++i) {
+        as.push(convert_mp_to_js_obj_jsside(args + i * 4));
+    }
+    const ret = Reflect.construct(f, as);
     convert_js_to_mp_obj_jsside(ret, out);
 });
 
@@ -227,12 +232,17 @@ STATIC mp_obj_t jsobj_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const m
 
 STATIC mp_obj_t jsobj_reflect_construct(size_t n_args, const mp_obj_t *args) {
     int arg0 = mp_obj_jsobj_get_ref(args[0]);
-    const char *arg1 = mp_obj_str_get_str(args[1]);
+    n_args -= 1;
+    args += 1;
+    uint32_t args_conv[n_args];
+    for (unsigned int i = 0; i < n_args; ++i) {
+        convert_mp_to_js_obj_cside(args[i], &args_conv[i * PVN]);
+    }
     uint32_t out[3];
-    js_reflect_construct(arg0, arg1, out);
+    js_reflect_construct(arg0, n_args, args_conv, out);
     return convert_js_to_mp_obj_cside(out);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR(jsobj_reflect_construct_obj, 0, jsobj_reflect_construct);
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR(jsobj_reflect_construct_obj, 1, jsobj_reflect_construct);
 
 STATIC mp_obj_t jsobj_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
     mp_obj_jsobj_t *self = MP_OBJ_TO_PTR(self_in);
@@ -261,6 +271,8 @@ STATIC void jsobj_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
         // Load attribute.
         if (attr == MP_QSTR_new) {
             // Special case to handle construction of JS objects.
+            // JS objects don't have a ".new" attribute, doing "Obj.new" is a Pyodide idiom for "new Obj".
+            // It translates to the JavaScript "Reflect.construct(Obj, Array(...args))".
             dest[0] = MP_OBJ_FROM_PTR(&jsobj_reflect_construct_obj);
             dest[1] = self_in;
             return;
