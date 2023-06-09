@@ -7,7 +7,7 @@ function proxy_js_init() {
 }
 
 function proxy_call_python(target, argumentsList) {
-    console.debug("APPLY", target, argumentsList);
+    //console.debug("APPLY", target, argumentsList);
     let args = 0;
 
     // TODO: is this the correct thing to do, strip trailing "undefined" args?
@@ -38,7 +38,7 @@ const proxy_handler = {
         throw Error("has not implemented");
     },
     get(target, prop) {
-        console.debug("GET", target._ref, prop);
+        //console.debug("GET", target._ref, prop);
         if (prop in target || typeof prop === "symbol") {
             return Reflect.get(target, prop);
         }
@@ -47,7 +47,7 @@ const proxy_handler = {
         return convert_mp_to_js_obj_jsside_with_free(value);
     },
     set(target, prop, value) {
-        console.debug("SET", target, prop, value);
+        //console.debug("SET", target, prop, value);
         if (typeof prop === "symbol") {
             return Reflect.set(target, prop, value);
         }
@@ -89,7 +89,7 @@ function convert_js_to_mp_obj_jsside(js_obj, out) {
         Module.setValue(out + 4, id, "i32");
     }
     Module.setValue(out + 0, kind, "i32");
-    console.debug("convert_js_to_mp_obj_jsside", js_obj, out, "->", kind, Module.getValue(out + 4, "i32"));
+    //console.debug("convert_js_to_mp_obj_jsside", js_obj, out, "->", kind, Module.getValue(out + 4, "i32"));
 }
 
 function convert_mp_to_js_obj_jsside(value) {
@@ -138,7 +138,7 @@ function convert_mp_to_js_obj_jsside(value) {
             obj = new Proxy(target, proxy_handler);
         }
     }
-    console.debug("convert_mp_to_js_obj_jsside", value, kind, "->", obj, kind == 5 ? Module.getValue(value + 4, "i32") : "");
+    //console.debug("convert_mp_to_js_obj_jsside", value, kind, "->", obj, kind == 5 ? Module.getValue(value + 4, "i32") : "");
     return obj;
 }
 
