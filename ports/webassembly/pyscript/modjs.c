@@ -52,7 +52,7 @@ EM_JS(bool, load_global, (const char *str, uint32_t *out), {
 EM_JS(bool, lookup_attr, (int jsref, const char *str, uint32_t *out), {
     const base = proxy_js_ref[jsref];
     const attr = UTF8ToString(str);
-    console.debug("lookup_attr", jsref, base, attr);
+    //console.debug("lookup_attr", jsref, base, attr);
     if (attr in base) {
         let value = base[attr];
         if (typeof value == "function") {
@@ -68,7 +68,7 @@ EM_JS(bool, lookup_attr, (int jsref, const char *str, uint32_t *out), {
 EM_JS(void, store_attr, (int jsref, const char *attr_ptr, uint32_t *value_ref), {
     const attr = UTF8ToString(attr_ptr);
     const value = convert_mp_to_js_obj_jsside(value_ref);
-    console.debug("store_attr", proxy_js_ref[jsref], attr, value);
+    //console.debug("store_attr", proxy_js_ref[jsref], attr, value);
     proxy_js_ref[jsref][attr] = value;
 });
 
