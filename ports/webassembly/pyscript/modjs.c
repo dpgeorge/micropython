@@ -260,14 +260,12 @@ STATIC void jsobj_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
         uint32_t out[PVN];
         if (lookup_attr(self->ref, qstr_str(attr), out)) {
             dest[0] = convert_js_to_mp_obj_cside(out);
-        }
-        if (attr == MP_QSTR_new) {
+        } else if (attr == MP_QSTR_new) {
             // Special case to handle construction of JS objects.
             // JS objects don't have a ".new" attribute, doing "Obj.new" is a Pyodide idiom for "new Obj".
             // It translates to the JavaScript "Reflect.construct(Obj, Array(...args))".
             dest[0] = MP_OBJ_FROM_PTR(&jsobj_reflect_construct_obj);
             dest[1] = self_in;
-            return;
         }
     } else if (dest[1] == MP_OBJ_NULL) {
         // Delete attribute.
