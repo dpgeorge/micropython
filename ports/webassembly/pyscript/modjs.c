@@ -42,7 +42,9 @@ EM_JS(bool, lookup_attr, (int jsref, const char *str, uint32_t *out), {
     if (attr in base) {
         let value = base[attr];
         if (typeof value == "function") {
-            value = value.bind(base);
+            if (base !== globalThis) {
+                value = value.bind(base);
+            }
         }
         convert_js_to_mp_obj_jsside(value, out);
         return true;

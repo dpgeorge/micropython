@@ -11,9 +11,6 @@ Promise.withResolvers || (Promise.withResolvers = function withResolvers() {
 import {loadMicroPython} from '../../build/micropython.mjs';
 const runtime = await loadMicroPython({url: '../../build/micropython.wasm'});
 
-// why is this needed? comment this and see the error
-globalThis.Promise = class extends Promise {};
-
 runtime.runPython(`
     from js import Promise
 
