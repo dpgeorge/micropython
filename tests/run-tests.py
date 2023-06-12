@@ -410,7 +410,7 @@ def run_tests(pyb, tests, args, result_dir, num_threads=1):
 
     # If we're asked to --list-tests, we can't assume that there's a
     # connection to target, so we can't run feature checks usefully.
-    if not (args.list_tests or args.write_exp):
+    if not (args.skip_feature_detection or args.list_tests or args.write_exp):
         # Even if we run completely different tests in a different directory,
         # we need to access feature_checks from the same directory as the
         # run-tests.py script itself so use base_path.
@@ -892,6 +892,11 @@ the last matching regex is used:
         "--clean-failures",
         action="store_true",
         help="delete the .exp and .out files from failed tests and exit",
+    )
+    cmd_parser.add_argument(
+        "--skip-feature-detection",
+        action="store_true",
+        help="skip running feature detection on the target",
     )
     args = cmd_parser.parse_args()
 
