@@ -1,12 +1,5 @@
-hello
-hello from webassembly
-<class 'OrderedDict'>
+<module 'js'>
 13
-testmod 1
-testmod: { _ref: 2 } 1
-importlib: { _ref: 3 }
-<jsobj 4>
-2
 main { a: 1 }
 =======
 =======
