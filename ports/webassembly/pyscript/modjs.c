@@ -269,6 +269,10 @@ STATIC void jsobj_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
     mp_obj_jsobj_t *self = MP_OBJ_TO_PTR(self_in);
     if (dest[0] == MP_OBJ_NULL) {
         // Load attribute.
+        uint32_t out[PVN];
+        if (lookup_attr(self->ref, qstr_str(attr), out)) {
+            dest[0] = convert_js_to_mp_obj_cside(out);
+        }
         if (attr == MP_QSTR_new) {
             // Special case to handle construction of JS objects.
             // JS objects don't have a ".new" attribute, doing "Obj.new" is a Pyodide idiom for "new Obj".
@@ -276,10 +280,6 @@ STATIC void jsobj_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
             dest[0] = MP_OBJ_FROM_PTR(&jsobj_reflect_construct_obj);
             dest[1] = self_in;
             return;
-        }
-        uint32_t out[PVN];
-        if (lookup_attr(self->ref, qstr_str(attr), out)) {
-            dest[0] = convert_js_to_mp_obj_cside(out);
         }
     } else if (dest[1] == MP_OBJ_NULL) {
         // Delete attribute.
