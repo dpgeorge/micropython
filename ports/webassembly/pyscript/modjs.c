@@ -35,20 +35,6 @@
 // proxy value number of items
 #define PVN (3)
 
-EM_JS(bool, load_global, (const char *str, uint32_t *out), {
-    let s = UTF8ToString(str);
-    if (s in globalThis) {
-        let value = globalThis[s];
-        if (typeof value == "function") {
-            value = value.bind(globalThis);
-        }
-        convert_js_to_mp_obj_jsside(value, out);
-        return true;
-    } else {
-        return false;
-    }
-});
-
 EM_JS(bool, lookup_attr, (int jsref, const char *str, uint32_t *out), {
     const base = proxy_js_ref[jsref];
     const attr = UTF8ToString(str);
@@ -345,24 +331,14 @@ mp_obj_t mp_obj_new_jsobj(int ref) {
     return MP_OBJ_FROM_PTR(o);
 }
 
-STATIC void mp_module_js_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
-    if (dest[0] != MP_OBJ_NULL) {
-        // Only load supported.
-        return;
-    }
-
-    uint32_t out[3];
-    if (!load_global(qstr_str(attr), out)) {
-        return;
-    }
-
-    dest[0] = convert_js_to_mp_obj_cside(out);
+void mp_module_js_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
+    mp_obj_jsobj_t global_this;
+    global_this.ref = 0;
+    jsobj_attr(MP_OBJ_FROM_PTR(&global_this), attr, dest);
 }
 
 STATIC const mp_rom_map_elem_t mp_module_js_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_js) },
-
-    MP_MODULE_ATTR_DELEGATION_ENTRY(&mp_module_js_attr),
 };
 STATIC MP_DEFINE_CONST_DICT(mp_module_js_globals, mp_module_js_globals_table);
 
@@ -372,3 +348,4 @@ const mp_obj_module_t mp_module_js = {
 };
 
 MP_REGISTER_MODULE(MP_QSTR_js, mp_module_js);
+MP_REGISTER_MODULE_DELEGATION(mp_module_js, mp_module_js_attr);

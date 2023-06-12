@@ -3,7 +3,7 @@ class PythonError extends Error {
 Object.defineProperty(PythonError.prototype, "name", { value: "PythonError" });
 
 function proxy_js_init() {
-    globalThis.proxy_js_ref = [0];
+    globalThis.proxy_js_ref = [globalThis];
 }
 
 function proxy_call_python(target, argumentsList) {
