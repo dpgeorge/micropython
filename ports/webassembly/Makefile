@@ -58,6 +58,7 @@ JSFLAGS += -s EXPORTED_RUNTIME_METHODS="\
 	FS$(EXPORTED_RUNTIME_METHODS_EXTRA)"
 JSFLAGS += -s --memory-init-file 0
 JSFLAGS += --js-library library.js
+JSFLAGS += -s SUPPORT_LONGJMP=emscripten
 
 all: $(BUILD)/micropython.mjs
 
