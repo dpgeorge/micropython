@@ -44,7 +44,11 @@ void gc_unlock(void);
 bool gc_is_locked(void);
 
 // A given port must implement gc_collect by using the other collect functions.
+#if MICROPY_GC_COLLECT_WANTED_BYTES
+void gc_collect(size_t wanted_bytes);
+#else
 void gc_collect(void);
+#endif
 void gc_collect_start(void);
 void gc_collect_root(void **ptrs, size_t len);
 void gc_collect_end(void);
