@@ -77,7 +77,7 @@ const mp_obj_module_t mp_module_pyodide_ffi = {
 // pyodide module
 
 STATIC const mp_rom_map_elem_t mp_module_pyodide_globals_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR__pyodide_helper) },
+    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_pyodide) },
 
     { MP_ROM_QSTR(MP_QSTR_ffi), MP_ROM_PTR(&mp_module_pyodide_ffi) },
 };
@@ -88,4 +88,4 @@ const mp_obj_module_t mp_module_pyodide = {
     .globals = (mp_obj_dict_t *)&mp_module_pyodide_globals,
 };
 
-MP_REGISTER_MODULE(MP_QSTR__pyodide_helper, mp_module_pyodide);
+MP_REGISTER_MODULE(MP_QSTR_pyodide, mp_module_pyodide);
