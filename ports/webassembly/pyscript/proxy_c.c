@@ -93,16 +93,27 @@ void proxy_c_to_js_call(uint32_t c_ref, uint32_t n_args, uint32_t *args_value, u
     }
 }
 
+STATIC MP_DEFINE_CONST_FUN_OBJ_3(mp_obj_dict_store_obj, mp_obj_dict_store);
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(mp_obj_dict_delete_obj, mp_obj_dict_delete);
+
 void proxy_c_to_js_lookup_attr(uint32_t c_ref, const char *attr, uint32_t *out) {
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0) {
         mp_obj_t obj = ((mp_obj_list_t *)MP_OBJ_TO_PTR(MP_STATE_PORT(proxy_c_ref)))->items[c_ref];
+        qstr qst = qstr_from_str(attr);
         #if 0
         mp_printf(MICROPY_ERROR_PRINTER, "lookup %s from ", attr);
         mp_obj_print_helper(MICROPY_ERROR_PRINTER, obj, PRINT_REPR);
         mp_printf(MICROPY_ERROR_PRINTER, "\n");
         #endif
-        mp_obj_t member = mp_load_attr(obj, qstr_from_str(attr));
+        mp_obj_t member;
+        if (qst == MP_QSTR_set && mp_obj_is_dict_or_ordereddict(obj)) {
+            member = mp_obj_new_bound_meth(MP_OBJ_FROM_PTR(&mp_obj_dict_store_obj), obj);
+        } else if (qst == MP_QSTR_delete && mp_obj_is_dict_or_ordereddict(obj)) {
+            member = mp_obj_new_bound_meth(MP_OBJ_FROM_PTR(&mp_obj_dict_delete_obj), obj);
+        } else {
+            member = mp_load_attr(obj, qstr_from_str(attr));
+        }
         nlr_pop();
         return convert_mp_to_js_obj_cside(member, out);
     } else {
