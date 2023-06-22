@@ -113,15 +113,27 @@ void mp_js_init_repl() {
     pyexec_event_repl_init();
 }
 
+#if 0
 STATIC void gc_scan_func(void *begin, void *end) {
     gc_collect_root((void **)begin, (void **)end - (void **)begin + 1);
 }
+#endif
 
-void gc_collect(void) {
+void gc_collect(size_t wanted_bytes) {
+    // Expand the heap.
+    if (wanted_bytes > 0) {
+        size_t heap_size = MAX((2 * wanted_bytes / 1024 + 1) * 1024, 1024 * 1024);
+        char *heap = malloc(heap_size);
+        if (heap != NULL) {
+            gc_add(heap, heap + heap_size);
+        }
+    }
+    #if 0
     gc_collect_start();
     emscripten_scan_stack(gc_scan_func);
     emscripten_scan_registers(gc_scan_func);
     gc_collect_end();
+    #endif
 }
 
 #if !MICROPY_VFS
