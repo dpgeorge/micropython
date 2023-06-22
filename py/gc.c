@@ -613,7 +613,11 @@ void *gc_alloc(size_t n_bytes, unsigned int alloc_flags) {
     #if MICROPY_GC_ALLOC_THRESHOLD
     if (!collected && MP_STATE_MEM(gc_alloc_amount) >= MP_STATE_MEM(gc_alloc_threshold)) {
         GC_EXIT();
+        #if MICROPY_GC_COLLECT_WANTED_BYTES
+        gc_collect(0);
+        #else
         gc_collect();
+        #endif
         collected = 1;
         GC_ENTER();
     }
@@ -657,7 +661,11 @@ void *gc_alloc(size_t n_bytes, unsigned int alloc_flags) {
             return NULL;
         }
         DEBUG_printf("gc_alloc(" UINT_FMT "): no free mem, triggering GC\n", n_bytes);
+        #if MICROPY_GC_COLLECT_WANTED_BYTES
+        gc_collect(n_bytes);
+        #else
         gc_collect();
+        #endif
         collected = 1;
         GC_ENTER();
     }
