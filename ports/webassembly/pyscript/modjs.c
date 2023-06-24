@@ -35,6 +35,16 @@
 // proxy value number of items
 #define PVN (3)
 
+EM_JS(bool, has_attr, (int jsref, const char *str), {
+    const base = proxy_js_ref[jsref];
+    const attr = UTF8ToString(str);
+    if (attr in base) {
+        return true;
+    } else {
+        return false;
+    }
+});
+
 EM_JS(bool, lookup_attr, (int jsref, const char *str, uint32_t *out), {
     const base = proxy_js_ref[jsref];
     const attr = UTF8ToString(str);
@@ -279,6 +289,69 @@ STATIC void jsobj_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
 }
 
 /******************************************************************************/
+// bridge Python generator to JS thenable
+
+MP_DECLARE_CONST_FUN_OBJ_VAR_BETWEEN(resume_obj);
+
+EM_JS(void, js_then_resolve, (uint32_t *resolve, uint32_t *reject), {
+    const resolve_js = convert_mp_to_js_obj_jsside(resolve);
+    const reject_js = convert_mp_to_js_obj_jsside(reject);
+    resolve_js(null);
+});
+
+EM_JS(void, js_then_reject, (uint32_t *resolve, uint32_t *reject), {
+    const resolve_js = convert_mp_to_js_obj_jsside(resolve);
+    const reject_js = convert_mp_to_js_obj_jsside(reject);
+    reject_js(null);
+});
+
+EM_JS(void, js_then_continue, (int jsref, uint32_t *py_resume, uint32_t *resolve, uint32_t *reject, uint32_t *out), {
+    const py_resume_js = convert_mp_to_js_obj_jsside(py_resume);
+    const resolve_js = convert_mp_to_js_obj_jsside(resolve);
+    const reject_js = convert_mp_to_js_obj_jsside(reject);
+    const ret = proxy_js_ref[jsref].then((x) => {py_resume_js(x, resolve_js, reject_js);}, reject_js);
+    convert_js_to_mp_obj_jsside(ret, out);
+});
+
+STATIC mp_obj_t resume_execute(mp_obj_t self_in, mp_obj_t value, mp_obj_t resolve, mp_obj_t reject) {
+    mp_obj_t ret_value;
+    mp_vm_return_kind_t ret_kind = mp_resume(self_in, value, MP_OBJ_NULL, &ret_value);
+
+    uint32_t out_resolve[PVN];
+    uint32_t out_reject[PVN];
+    convert_mp_to_js_obj_cside(resolve, out_resolve);
+    convert_mp_to_js_obj_cside(reject, out_reject);
+
+    if (ret_kind == MP_VM_RETURN_NORMAL) {
+        js_then_resolve(out_resolve, out_reject);
+        return mp_const_none;
+    } else if (ret_kind == MP_VM_RETURN_YIELD) {
+        // ret_value should be a JS thenable
+        mp_obj_t py_resume = mp_obj_new_bound_meth(MP_OBJ_FROM_PTR(&resume_obj), self_in);
+        int ref = mp_obj_jsobj_get_ref(ret_value);
+        uint32_t out_py_resume[PVN];
+        convert_mp_to_js_obj_cside(py_resume, out_py_resume);
+        uint32_t out[PVN];
+        js_then_continue(ref, out_py_resume, out_resolve, out_reject, out);
+        return convert_js_to_mp_obj_cside(out);
+    } else {
+        // MP_VM_RETURN_EXCEPTION;
+        js_then_reject(out_resolve, out_reject);
+        nlr_raise(ret_value);
+    }
+}
+
+STATIC mp_obj_t then_fun(mp_obj_t self_in, mp_obj_t resolve, mp_obj_t reject) {
+    return resume_execute(self_in, mp_const_none, resolve, reject);
+}
+MP_DEFINE_CONST_FUN_OBJ_3(then_obj, then_fun);
+
+STATIC mp_obj_t resume_fun(size_t n_args, const mp_obj_t *args) {
+    return resume_execute(args[0], args[1], args[2], args[3]);
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(resume_obj, 4, 4, resume_fun);
+
+/******************************************************************************/
 // jsobj iterator
 
 typedef struct _jsobj_it_t {
@@ -301,18 +374,165 @@ STATIC mp_obj_t jsobj_it_iternext(mp_obj_t self_in) {
     }
 }
 
-STATIC mp_obj_t jsobj_getiter(mp_obj_t o_in, mp_obj_iter_buf_t *iter_buf) {
+STATIC mp_obj_t jsobj_new_it(mp_obj_t self_in, mp_obj_iter_buf_t *iter_buf) {
     assert(sizeof(jsobj_it_t) <= sizeof(mp_obj_iter_buf_t));
+    mp_obj_jsobj_t *self = MP_OBJ_TO_PTR(self_in);
     jsobj_it_t *o = (jsobj_it_t *)iter_buf;
     o->base.type = &mp_type_polymorph_iter;
     o->iternext = jsobj_it_iternext;
-    o->ref = mp_obj_jsobj_get_ref(o_in);
+    o->ref = self->ref;
     o->cur = 0;
-    o->len = js_get_len(o->ref);
+    o->len = js_get_len(self->ref);
     return MP_OBJ_FROM_PTR(o);
 }
 
 /******************************************************************************/
+// jsobj generator
+
+enum {
+    JSOBJ_GEN_STATE_WAITING,
+    JSOBJ_GEN_STATE_COMPLETED,
+    JSOBJ_GEN_STATE_EXHASTED,
+};
+
+typedef struct _jsobj_gen_t {
+    mp_obj_base_t base;
+    mp_obj_t thenable;
+    int state;
+} jsobj_gen_t;
+
+mp_vm_return_kind_t jsobj_gen_resume(mp_obj_t self_in, mp_obj_t send_value, mp_obj_t throw_value, mp_obj_t *ret_val) {
+    jsobj_gen_t *self = MP_OBJ_TO_PTR(self_in);
+    switch (self->state) {
+        case JSOBJ_GEN_STATE_WAITING:
+            self->state = JSOBJ_GEN_STATE_COMPLETED;
+            *ret_val = self->thenable;
+            return MP_VM_RETURN_YIELD;
+
+        case JSOBJ_GEN_STATE_COMPLETED:
+            self->state = JSOBJ_GEN_STATE_EXHASTED;
+            *ret_val = send_value;
+            return MP_VM_RETURN_NORMAL;
+
+        case JSOBJ_GEN_STATE_EXHASTED:
+        default:
+            // Trying to resume an already stopped generator.
+            // This is an optimised "raise StopIteration(None)".
+            *ret_val = mp_const_none;
+            return MP_VM_RETURN_NORMAL;
+    }
+}
+
+STATIC mp_obj_t jsobj_gen_resume_and_raise(mp_obj_t self_in, mp_obj_t send_value, mp_obj_t throw_value, bool raise_stop_iteration) {
+    mp_obj_t ret;
+    switch (jsobj_gen_resume(self_in, send_value, throw_value, &ret)) {
+        case MP_VM_RETURN_NORMAL:
+        default:
+            // A normal return is a StopIteration, either raise it or return
+            // MP_OBJ_STOP_ITERATION as an optimisation.
+            if (ret == mp_const_none) {
+                ret = MP_OBJ_NULL;
+            }
+            if (raise_stop_iteration) {
+                mp_raise_StopIteration(ret);
+            } else {
+                return mp_make_stop_iteration(ret);
+            }
+
+        case MP_VM_RETURN_YIELD:
+            return ret;
+
+        case MP_VM_RETURN_EXCEPTION:
+            nlr_raise(ret);
+    }
+}
+
+STATIC mp_obj_t jsobj_gen_instance_iternext(mp_obj_t self_in) {
+    return jsobj_gen_resume_and_raise(self_in, mp_const_none, MP_OBJ_NULL, false);
+}
+
+STATIC mp_obj_t jsobj_gen_instance_send(mp_obj_t self_in, mp_obj_t send_value) {
+    return jsobj_gen_resume_and_raise(self_in, send_value, MP_OBJ_NULL, true);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(jsobj_gen_instance_send_obj, jsobj_gen_instance_send);
+
+STATIC mp_obj_t jsobj_gen_instance_throw(size_t n_args, const mp_obj_t *args) {
+    // The signature of this function is: throw(type[, value[, traceback]])
+    // CPython will pass all given arguments through the call chain and process them
+    // at the point they are used (native generators will handle them differently to
+    // user-defined generators with a throw() method).  To save passing multiple
+    // values, MicroPython instead does partial processing here to reduce it down to
+    // one argument and passes that through:
+    // - if only args[1] is given, or args[2] is given but is None, args[1] is
+    //   passed through (in the standard case it is an exception class or instance)
+    // - if args[2] is given and not None it is passed through (in the standard
+    //   case it would be an exception instance and args[1] its corresponding class)
+    // - args[3] is always ignored
+
+    mp_obj_t exc = args[1];
+    if (n_args > 2 && args[2] != mp_const_none) {
+        exc = args[2];
+    }
+
+    return jsobj_gen_resume_and_raise(args[0], mp_const_none, exc, true);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(jsobj_gen_instance_throw_obj, 2, 4, jsobj_gen_instance_throw);
+
+STATIC mp_obj_t jsobj_gen_instance_close(mp_obj_t self_in) {
+    mp_obj_t ret;
+    switch (jsobj_gen_resume(self_in, mp_const_none, MP_OBJ_FROM_PTR(&mp_const_GeneratorExit_obj), &ret)) {
+        case MP_VM_RETURN_YIELD:
+            mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("generator ignored GeneratorExit"));
+
+        // Swallow GeneratorExit (== successful close), and re-raise any other
+        case MP_VM_RETURN_EXCEPTION:
+            // ret should always be an instance of an exception class
+            if (mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(mp_obj_get_type(ret)), MP_OBJ_FROM_PTR(&mp_type_GeneratorExit))) {
+                return mp_const_none;
+            }
+            nlr_raise(ret);
+
+        default:
+            // The only choice left is MP_VM_RETURN_NORMAL which is successful close
+            return mp_const_none;
+    }
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(jsobj_gen_instance_close_obj, jsobj_gen_instance_close);
+
+STATIC const mp_rom_map_elem_t jsobj_gen_instance_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_close), MP_ROM_PTR(&jsobj_gen_instance_close_obj) },
+    { MP_ROM_QSTR(MP_QSTR_send), MP_ROM_PTR(&jsobj_gen_instance_send_obj) },
+    { MP_ROM_QSTR(MP_QSTR_throw), MP_ROM_PTR(&jsobj_gen_instance_throw_obj) },
+};
+STATIC MP_DEFINE_CONST_DICT(jsobj_gen_instance_locals_dict, jsobj_gen_instance_locals_dict_table);
+
+MP_DEFINE_CONST_OBJ_TYPE(
+    mp_type_jsobj_gen,
+    MP_QSTR_generator,
+    MP_TYPE_FLAG_ITER_IS_ITERNEXT,
+    iter, jsobj_gen_instance_iternext,
+    locals_dict, &jsobj_gen_instance_locals_dict
+    );
+
+STATIC mp_obj_t jsobj_new_gen(mp_obj_t self_in, mp_obj_iter_buf_t *iter_buf) {
+    assert(sizeof(jsobj_gen_t) <= sizeof(mp_obj_iter_buf_t));
+    jsobj_gen_t *o = (jsobj_gen_t *)iter_buf;
+    o->base.type = &mp_type_jsobj_gen;
+    o->thenable = self_in;
+    o->state = JSOBJ_GEN_STATE_WAITING;
+    return MP_OBJ_FROM_PTR(o);
+}
+
+/******************************************************************************/
+
+STATIC mp_obj_t jsobj_getiter(mp_obj_t self_in, mp_obj_iter_buf_t *iter_buf) {
+    mp_obj_jsobj_t *self = MP_OBJ_TO_PTR(self_in);
+    if (has_attr(self->ref, "then")) {
+        return jsobj_new_gen(self_in, iter_buf);
+    } else {
+        return jsobj_new_it(self_in, iter_buf);
+    }
+}
 
 STATIC MP_DEFINE_CONST_OBJ_TYPE(
     mp_type_jsobj,

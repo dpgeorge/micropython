@@ -111,6 +111,8 @@ void proxy_c_to_js_lookup_attr(uint32_t c_ref, const char *attr, uint32_t *out) 
             member = mp_obj_new_bound_meth(MP_OBJ_FROM_PTR(&mp_obj_dict_store_obj), obj);
         } else if (qst == MP_QSTR_delete && mp_obj_is_dict_or_ordereddict(obj)) {
             member = mp_obj_new_bound_meth(MP_OBJ_FROM_PTR(&mp_obj_dict_delete_obj), obj);
+        } else if (qst == MP_QSTR_then && mp_obj_is_type(obj, &mp_type_gen_instance)) {
+            member = mp_obj_new_bound_meth(MP_OBJ_FROM_PTR(&then_obj), obj);
         } else {
             member = mp_load_attr(obj, qstr_from_str(attr));
         }

@@ -62,6 +62,11 @@ export async function loadMicroPython(options) {
             Module.ccall('mp_js_do_exec', 'number', ['string', "pointer"], [code, value]);
             return convert_mp_to_js_obj_jsside_with_free(value);
         },
+        runPythonAsync(code) {
+            const value = Module._malloc(3 * 4);
+            Module.ccall('mp_js_do_exec_async', 'number', ['string', "pointer"], [code, value]);
+            return convert_mp_to_js_obj_jsside_with_free(value);
+        },
     };
 }
 
