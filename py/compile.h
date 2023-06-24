@@ -30,6 +30,10 @@
 #include "py/parse.h"
 #include "py/emitglue.h"
 
+#if MICROPY_COMPILE_ALLOW_TOP_LEVEL_AWAIT
+extern bool mp_compile_allow_top_level_await;
+#endif
+
 // the compiler will raise an exception if an error occurred
 // the compiler will clear the parse tree before it returns
 // mp_globals_get() will be used for the context
