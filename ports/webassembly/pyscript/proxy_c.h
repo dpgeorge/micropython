@@ -9,3 +9,5 @@ mp_obj_t mp_obj_new_jsobj(int ref);
 
 bool mp_obj_is_jsobj(mp_obj_t o);
 int mp_obj_jsobj_get_ref(mp_obj_t o);
+
+MP_DECLARE_CONST_FUN_OBJ_3(then_obj);

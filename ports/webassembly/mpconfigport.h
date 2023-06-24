@@ -61,6 +61,7 @@ void mp_hal_stdout_tx_strn_cooked_pyscript(const char *str, unsigned int len);
 #define MICROPY_VFS_POSIX           (MICROPY_VFS)
 #define MICROPY_PY_SYS_PLATFORM     "webassembly"
 //#define MICROPY_PY_SYS_STDFILES     (0)
+#define MICROPY_COMPILE_ALLOW_TOP_LEVEL_AWAIT (1)
 #define MICROPY_GC_SPLIT_HEAP       (1)
 #define MICROPY_GC_COLLECT_WANTED_BYTES (1)
 #define MICROPY_MODULE_BUILTIN_SUBPACKAGES (1)

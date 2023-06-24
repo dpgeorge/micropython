@@ -10,6 +10,7 @@ EXPORTED_FUNCTIONS_EXTRA += ,\
 	_malloc,\
 	_free,\
 	_mp_js_do_exec,\
+	_mp_js_do_exec_async,\
 	_mp_js_do_import,\
 	_mp_js_register_js_module,\
 	_mp_obj_jsobj_callback_proxy,\

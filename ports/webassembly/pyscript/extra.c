@@ -135,3 +135,9 @@ void mp_js_do_exec(const char *src, uint32_t *out) {
         convert_mp_to_js_exc_cside(nlr.ret_val, out);
     }
 }
+
+void mp_js_do_exec_async(const char *src, uint32_t *out) {
+    mp_compile_allow_top_level_await = true;
+    mp_js_do_exec(src, out);
+    mp_compile_allow_top_level_await = false;
+}
