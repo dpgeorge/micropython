@@ -82,6 +82,24 @@ EM_JS(int, call1, (int f_ref, uint32_t *a0, uint32_t *out), {
     convert_js_to_mp_obj_jsside(ret, out);
 });
 
+EM_JS(int, call2, (int f_ref, uint32_t *a0, uint32_t *a1, uint32_t *out), {
+    const a0_js = convert_mp_to_js_obj_jsside(a0);
+    const a1_js = convert_mp_to_js_obj_jsside(a1);
+    const ret = proxy_js_ref[f_ref](a0_js, a1_js);
+    convert_js_to_mp_obj_jsside(ret, out);
+});
+
+EM_JS(int, calln, (int f_ref, uint32_t n_args, uint32_t *value, uint32_t *out), {
+    let f = proxy_js_ref[f_ref];
+    let a = [];
+    for (let i = 0; i < n_args; ++i) {
+        const v = convert_mp_to_js_obj_jsside(value + i * 3 * 4);
+        a.push(v);
+    }
+    const ret = f(...a);
+    convert_js_to_mp_obj_jsside(ret, out);
+});
+
 EM_JS(void, call0_kwarg, (int f_ref, uint32_t n_kw, uint32_t *key, uint32_t *value, uint32_t *out), {
     let f = proxy_js_ref[f_ref];
     let a = {};
@@ -104,13 +122,6 @@ EM_JS(void, call1_kwarg, (int f_ref, uint32_t *arg0, uint32_t n_kw, uint32_t *ke
         a[k] = v;
     }
     let ret = f(a0, a);
-    convert_js_to_mp_obj_jsside(ret, out);
-});
-
-EM_JS(int, call2, (int f_ref, uint32_t *a0, uint32_t *a1, uint32_t *out), {
-    const a0_js = convert_mp_to_js_obj_jsside(a0);
-    const a1_js = convert_mp_to_js_obj_jsside(a1);
-    const ret = proxy_js_ref[f_ref](a0_js, a1_js);
     convert_js_to_mp_obj_jsside(ret, out);
 });
 
@@ -186,7 +197,7 @@ STATIC mp_obj_t jsobj_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const m
     mp_obj_jsobj_t *self = MP_OBJ_TO_PTR(self_in);
 
     if (n_kw == 0) {
-        mp_arg_check_num(n_args, n_kw, 0, 2, false);
+        mp_arg_check_num(n_args, n_kw, 0, MP_OBJ_FUN_ARGS_MAX, false);
     } else {
         mp_arg_check_num(n_args, n_kw, 0, 1, true);
         uint32_t key[n_kw];
@@ -217,13 +228,21 @@ STATIC mp_obj_t jsobj_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const m
         convert_mp_to_js_obj_cside(args[0], arg0);
         call1(self->ref, arg0, out);
         return convert_js_to_mp_obj_cside(out);
-    } else {
+    } else if (n_args == 2) {
         uint32_t arg0[PVN];
         convert_mp_to_js_obj_cside(args[0], arg0);
         uint32_t arg1[PVN];
         convert_mp_to_js_obj_cside(args[1], arg1);
         uint32_t out[3];
         call2(self->ref, arg0, arg1, out);
+        return convert_js_to_mp_obj_cside(out);
+    } else {
+        uint32_t value[PVN * n_args];
+        for (int i = 0; i < n_args; ++i) {
+            convert_mp_to_js_obj_cside(args[i], &value[i * PVN]);
+        }
+        uint32_t out[3];
+        calln(self->ref, n_args, value, out);
         return convert_js_to_mp_obj_cside(out);
     }
 }
