@@ -72,6 +72,7 @@ void mp_hal_stdout_tx_strn_cooked_pyscript(const char *str, unsigned int len);
         mp_handle_pending(true); \
     } while (0);
 
+#if 0
 #define MICROPY_VM_HOOK_COUNT (10)
 #define MICROPY_VM_HOOK_INIT static uint vm_hook_divisor = MICROPY_VM_HOOK_COUNT;
 #define MICROPY_VM_HOOK_POLL if (--vm_hook_divisor == 0) { \
@@ -81,6 +82,7 @@ void mp_hal_stdout_tx_strn_cooked_pyscript(const char *str, unsigned int len);
 }
 #define MICROPY_VM_HOOK_LOOP MICROPY_VM_HOOK_POLL
 #define MICROPY_VM_HOOK_RETURN MICROPY_VM_HOOK_POLL
+#endif
 
 // type definitions for the specific machine
 
