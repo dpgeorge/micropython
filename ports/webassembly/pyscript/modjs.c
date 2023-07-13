@@ -71,27 +71,40 @@ EM_JS(void, store_attr, (int jsref, const char *attr_ptr, uint32_t *value_ref), 
 });
 
 EM_JS(void, call0, (int f_ref, uint32_t *out), {
-    let f = proxy_js_ref[f_ref];
-    let ret = f();
+    // Because of JavaScript "this" semantics, we must extract the target function
+    // to a variable before calling it, so "this" is bound to the correct value.
+    //
+    // In detail:
+    // In JavaScript, proxy_js_ref[f_ref] acts like a function call
+    // proxy_js_ref.at(f_ref), and "this" will be bound to proxy_js_ref if
+    // there is a chain of calls, such as proxy_js_ref.at(f_ref)().
+    // But proxy_js_ref is not "this" in the context of the call, so we
+    // must extract the function to an independent variable and then call
+    // that variable, so that "this" is correct (it will be "undefined").
+
+    const f = proxy_js_ref[f_ref];
+    const ret = f();
     convert_js_to_mp_obj_jsside(ret, out);
 });
 
 EM_JS(int, call1, (int f_ref, uint32_t *a0, uint32_t *out), {
     const a0_js = convert_mp_to_js_obj_jsside(a0);
-    const ret = proxy_js_ref[f_ref](a0_js);
+    const f = proxy_js_ref[f_ref];
+    const ret = f(a0_js);
     convert_js_to_mp_obj_jsside(ret, out);
 });
 
 EM_JS(int, call2, (int f_ref, uint32_t *a0, uint32_t *a1, uint32_t *out), {
     const a0_js = convert_mp_to_js_obj_jsside(a0);
     const a1_js = convert_mp_to_js_obj_jsside(a1);
-    const ret = proxy_js_ref[f_ref](a0_js, a1_js);
+    const f = proxy_js_ref[f_ref];
+    const ret = f(a0_js, a1_js);
     convert_js_to_mp_obj_jsside(ret, out);
 });
 
 EM_JS(int, calln, (int f_ref, uint32_t n_args, uint32_t *value, uint32_t *out), {
-    let f = proxy_js_ref[f_ref];
-    let a = [];
+    const f = proxy_js_ref[f_ref];
+    const a = [];
     for (let i = 0; i < n_args; ++i) {
         const v = convert_mp_to_js_obj_jsside(value + i * 3 * 4);
         a.push(v);
@@ -101,27 +114,27 @@ EM_JS(int, calln, (int f_ref, uint32_t n_args, uint32_t *value, uint32_t *out), 
 });
 
 EM_JS(void, call0_kwarg, (int f_ref, uint32_t n_kw, uint32_t *key, uint32_t *value, uint32_t *out), {
-    let f = proxy_js_ref[f_ref];
-    let a = {};
+    const f = proxy_js_ref[f_ref];
+    const a = {};
     for (let i = 0; i < n_kw; ++i) {
-        let k = UTF8ToString(getValue(key + i * 4, "i32"));
-        let v = convert_mp_to_js_obj_jsside(value + i * 3 * 4);
+        const k = UTF8ToString(getValue(key + i * 4, "i32"));
+        const v = convert_mp_to_js_obj_jsside(value + i * 3 * 4);
         a[k] = v;
     }
-    let ret = f(a);
+    const ret = f(a);
     convert_js_to_mp_obj_jsside(ret, out);
 });
 
 EM_JS(void, call1_kwarg, (int f_ref, uint32_t *arg0, uint32_t n_kw, uint32_t *key, uint32_t *value, uint32_t *out), {
-    let f = proxy_js_ref[f_ref];
-    let a0 = convert_mp_to_js_obj_jsside(arg0);
-    let a = {};
+    const f = proxy_js_ref[f_ref];
+    const a0 = convert_mp_to_js_obj_jsside(arg0);
+    const a = {};
     for (let i = 0; i < n_kw; ++i) {
-        let k = UTF8ToString(getValue(key + i * 4, "i32"));
-        let v = convert_mp_to_js_obj_jsside(value + i * 3 * 4);
+        const k = UTF8ToString(getValue(key + i * 4, "i32"));
+        const v = convert_mp_to_js_obj_jsside(value + i * 3 * 4);
         a[k] = v;
     }
-    let ret = f(a0, a);
+    const ret = f(a0, a);
     convert_js_to_mp_obj_jsside(ret, out);
 });
 
@@ -140,7 +153,8 @@ EM_JS(int, js_get_len, (int f_ref), {
 });
 
 EM_JS(void, js_subscr_int, (int f_ref, int idx, uint32_t *out), {
-    const ret = proxy_js_ref[f_ref][idx];
+    const f = proxy_js_ref[f_ref];
+    const ret = f[idx];
     convert_js_to_mp_obj_jsside(ret, out);
 });
 
@@ -152,7 +166,8 @@ EM_JS(void, js_subscr_load, (int f_ref, uint32_t *index_ref, uint32_t *out), {
 });
 
 EM_JS(void, js_subscr_store, (int f_ref, uint32_t *idx, uint32_t *value), {
-    proxy_js_ref[f_ref][convert_mp_to_js_obj_jsside(idx)] = convert_mp_to_js_obj_jsside(value);
+    const f = proxy_js_ref[f_ref];
+    f[convert_mp_to_js_obj_jsside(idx)] = convert_mp_to_js_obj_jsside(value);
 });
 
 typedef struct _mp_obj_jsobj_t {
