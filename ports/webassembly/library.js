@@ -29,7 +29,7 @@ mergeInto(LibraryManager.library, {
         const buffer = HEAPU8.subarray(ptr, ptr + len)
         if (ENVIRONMENT_IS_NODE) {
             process.stdout.write(buffer);
-        } else {
+        } else if (ENVIRONMENT_IS_WEB) {
             const printEvent = new CustomEvent('micropython-print', { detail: buffer });
             document.dispatchEvent(printEvent);
         }
