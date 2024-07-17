@@ -464,7 +464,7 @@ void mp_raw_code_load_file(qstr filename, mp_compiled_module_t *context) {
 
 #endif // MICROPY_PERSISTENT_CODE_LOAD
 
-#if MICROPY_PERSISTENT_CODE_SAVE
+#if MICROPY_PERSISTENT_CODE_SAVE || MICROPY_PERSISTENT_CODE_SAVE_FUN
 
 #include "py/objstr.h"
 
@@ -562,6 +562,10 @@ static void save_obj(mp_print_t *print, mp_obj_t o) {
     }
 }
 
+#endif // MICROPY_PERSISTENT_CODE_SAVE || MICROPY_PERSISTENT_CODE_SAVE_FUN
+
+#if MICROPY_PERSISTENT_CODE_SAVE
+
 static void save_raw_code(mp_print_t *print, const mp_raw_code_t *rc) {
     // Save function kind and data length
     mp_print_uint(print, (rc->fun_data_len << 3) | ((rc->n_children != 0) << 2) | (rc->kind - MP_CODE_BYTECODE));
@@ -631,6 +635,8 @@ void mp_raw_code_save(mp_compiled_module_t *cm, mp_print_t *print) {
     save_raw_code(print, cm->rc);
 }
 
+#endif // MICROPY_PERSISTENT_CODE_SAVE
+
 #if MICROPY_PERSISTENT_CODE_SAVE_FILE
 
 #include <unistd.h>
@@ -661,7 +667,184 @@ void mp_raw_code_save_file(mp_compiled_module_t *cm, qstr filename) {
 
 #endif // MICROPY_PERSISTENT_CODE_SAVE_FILE
 
-#endif // MICROPY_PERSISTENT_CODE_SAVE
+#if MICROPY_PERSISTENT_CODE_SAVE_FUN
+
+#include "py/bc0.h"
+#include "py/objfun.h"
+#include "py/smallint.h"
+#include "py/gc.h"
+
+#define MP_BC_OPCODE_HAS_SIGNED_OFFSET(opcode) (MP_BC_UNWIND_JUMP <= (opcode) && (opcode) <= MP_BC_POP_JUMP_IF_FALSE)
+
+typedef struct _qstr_table_used_t {
+    size_t max_index;
+    size_t alloc;
+    uint8_t *used;
+} qstr_table_used_t;
+
+static void qstr_table_used_init(qstr_table_used_t *q) {
+    q->max_index = 0;
+    q->alloc = 4;
+    q->used = m_new(uint8_t, q->alloc);
+}
+
+static void qstr_table_used_clear(qstr_table_used_t *q) {
+    m_del(uint8_t, q->used, q->alloc);
+}
+
+static bool qstr_table_used_is_used(qstr_table_used_t *q, mp_uint_t qstr_index) {
+    return qstr_index / 8 < q->alloc
+        && (q->used[qstr_index / 8] & (1 << (qstr_index % 8))) != 0;
+}
+
+static void qstr_table_used_add(qstr_table_used_t *q, mp_uint_t qstr_index) {
+    q->max_index = MAX(q->max_index, qstr_index);
+    if (qstr_index / 8 >= q->alloc) {
+        size_t new_alloc = q->alloc * 2;
+        q->used = m_renew(uint8_t, q->used, q->alloc, new_alloc);
+        q->alloc = new_alloc;
+    }
+    q->used[qstr_index / 8] |= 1 << (qstr_index % 8);
+}
+
+typedef struct _mp_opcode_t {
+    uint8_t opcode;
+    uint8_t format;
+    uint8_t size;
+    mp_int_t arg;
+    uint8_t extra_arg;
+} mp_opcode_t;
+
+static mp_opcode_t mp_opcode_decode(const uint8_t *ip) {
+    const uint8_t *ip_start = ip;
+    uint8_t opcode = *ip++;
+    uint8_t opcode_format = MP_BC_FORMAT(opcode);
+    mp_uint_t arg = 0;
+    uint8_t extra_arg = 0;
+    if (opcode_format == MP_BC_FORMAT_QSTR || opcode_format == MP_BC_FORMAT_VAR_UINT) {
+        arg = *ip & 0x7f;
+        if (opcode == MP_BC_LOAD_CONST_SMALL_INT && (arg & 0x40) != 0) {
+            arg |= (mp_uint_t)(-1) << 7;
+        }
+        while ((*ip & 0x80) != 0) {
+            arg = (arg << 7) | (*++ip & 0x7f);
+        }
+        ++ip;
+    } else if (opcode_format == MP_BC_FORMAT_OFFSET) {
+        if ((*ip & 0x80) == 0) {
+            arg = *ip++;
+            if (MP_BC_OPCODE_HAS_SIGNED_OFFSET(opcode)) {
+                arg -= 0x40;
+            }
+        } else {
+            arg = (ip[0] & 0x7f) | (ip[1] << 7);
+            ip += 2;
+            if (MP_BC_OPCODE_HAS_SIGNED_OFFSET(opcode)) {
+                arg -= 0x4000;
+            }
+        }
+    }
+    if ((opcode & MP_BC_MASK_EXTRA_BYTE) == 0) {
+        extra_arg = *ip++;
+    }
+
+    mp_opcode_t op = { opcode, opcode_format, ip - ip_start, arg, extra_arg };
+    return op;
+}
+
+mp_obj_t mp_raw_code_save_fun_to_bytes(const mp_module_constants_t *consts, const uint8_t *bytecode) {
+    const uint8_t *fun_data = bytecode;
+    const uint8_t *fun_data_top = fun_data + gc_nbytes(fun_data);
+
+    // Extract function information.
+    const byte *ip = fun_data;
+    MP_BC_PRELUDE_SIG_DECODE(ip);
+    MP_BC_PRELUDE_SIZE_DECODE(ip);
+
+    // Track the qstrs used by the function.
+    qstr_table_used_t qstr_table_used;
+    qstr_table_used_init(&qstr_table_used);
+
+    // Track the objects used by the function.
+    qstr_table_used_t obj_table_used;
+    qstr_table_used_init(&obj_table_used);
+
+    const byte *ip_names = ip;
+    mp_uint_t simple_name = mp_decode_uint(&ip_names);
+    qstr_table_used_add(&qstr_table_used, simple_name);
+    for (size_t i = 0; i < n_pos_args + n_kwonly_args; ++i) {
+        mp_uint_t arg_name = mp_decode_uint(&ip_names);
+        qstr_table_used_add(&qstr_table_used, arg_name);
+    }
+
+    if (n_def_pos_args != 0) {
+        mp_raise_ValueError(MP_ERROR_TEXT("function can't have default positional arguments"));
+    }
+
+    // Skip pass source code info and cell info.
+    // Then ip points to the start of the opcodes.
+    ip += n_info + n_cell;
+
+    // Decode bytecode.
+    while (ip < fun_data_top) {
+        mp_opcode_t op = mp_opcode_decode(ip);
+        if (op.opcode == MP_BC_BASE_RESERVED) {
+            // End of opcodes.
+            fun_data_top = ip;
+        } else if (op.opcode == MP_BC_LOAD_CONST_OBJ) {
+            qstr_table_used_add(&obj_table_used, op.arg);
+        } else if (op.format == MP_BC_FORMAT_QSTR) {
+            qstr_table_used_add(&qstr_table_used, op.arg);
+        }
+        ip += op.size;
+    }
+
+    mp_uint_t fun_data_len = fun_data_top - fun_data;
+
+    mp_print_t print;
+    vstr_t vstr;
+    vstr_init_print(&vstr, 64, &print);
+
+    // Start with .mpy header.
+    const uint8_t header[4] = { 'M', MPY_VERSION, 0, MP_SMALL_INT_BITS };
+    mp_print_bytes(&print, header, sizeof(header));
+
+    // Number of entries in constant table.
+    mp_print_uint(&print, qstr_table_used.max_index + 1);
+    mp_print_uint(&print, obj_table_used.max_index + 1);
+
+    // Save qstrs.
+    for (size_t i = 0; i <= qstr_table_used.max_index; ++i) {
+        if (qstr_table_used_is_used(&qstr_table_used, i)) {
+            save_qstr(&print, consts->qstr_table[i]);
+        } else {
+            save_qstr(&print, MP_QSTR_);
+        }
+    }
+
+    // Save constant objects.
+    for (size_t i = 0; i <= obj_table_used.max_index; ++i) {
+        if (qstr_table_used_is_used(&obj_table_used, i)) {
+            save_obj(&print, consts->obj_table[i]);
+        } else {
+            save_obj(&print, mp_const_none);
+        }
+    }
+
+    qstr_table_used_clear(&qstr_table_used);
+    qstr_table_used_clear(&obj_table_used);
+
+    // Save function kind and data length.
+    mp_print_uint(&print, fun_data_len << 3);
+
+    // Save function code.
+    mp_print_bytes(&print, fun_data, fun_data_len);
+
+    // Create and return bytes representing the .mpy data.
+    return mp_obj_new_bytes_from_vstr(&vstr);
+}
+
+#endif // MICROPY_PERSISTENT_CODE_SAVE_FUN
 
 #if MICROPY_PERSISTENT_CODE_TRACK_RELOC_CODE
 // An mp_obj_list_t that tracks relocated native code to prevent the GC from reclaiming them.
