@@ -28,6 +28,8 @@
 
 #include "py/builtin.h"
 #include "py/cstack.h"
+#include "py/objfun.h"
+#include "py/persistentcode.h"
 #include "py/runtime.h"
 #include "py/gc.h"
 #include "py/mphal.h"
@@ -166,6 +168,38 @@ static mp_obj_t mp_micropython_schedule(mp_obj_t function, mp_obj_t arg) {
 static MP_DEFINE_CONST_FUN_OBJ_2(mp_micropython_schedule_obj, mp_micropython_schedule);
 #endif
 
+#if MICROPY_PY_MICROPYTHON_FUN_TO_MPY
+
+static mp_obj_t mp_micropython_fun_to_mpy(mp_obj_t fun_in) {
+    if (!mp_obj_is_type(fun_in, &mp_type_fun_bc)
+        && !mp_obj_is_type(fun_in, &mp_type_gen_wrap)) {
+        mp_raise_ValueError(MP_ERROR_TEXT("function must be a bytecode function"));
+    }
+    const mp_obj_fun_bc_t *fun = MP_OBJ_TO_PTR(fun_in);
+    if (fun->child_table != NULL) {
+        mp_raise_ValueError(MP_ERROR_TEXT("function can't have children"));
+    }
+    return mp_raw_code_save_fun_to_bytes(&fun->context->constants, fun->bytecode);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_micropython_fun_to_mpy_obj, mp_micropython_fun_to_mpy);
+
+static mp_obj_t mp_micropython_fun_from_mpy(size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_READ);
+    mp_module_context_t *ctx = m_new_obj(mp_module_context_t);
+    if (n_args == 1) {
+        ctx->module.globals = mp_globals_get();
+    } else {
+        ctx->module.globals = args[1];
+    }
+    mp_compiled_module_t cm = { .context = ctx };
+    mp_raw_code_load_mem(bufinfo.buf, bufinfo.len, &cm);
+    return mp_make_function_from_proto_fun(cm.rc, ctx, NULL);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_micropython_fun_from_mpy_obj, 1, 2, mp_micropython_fun_from_mpy);
+
+#endif
+
 static const mp_rom_map_elem_t mp_module_micropython_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_micropython) },
     { MP_ROM_QSTR(MP_QSTR_const), MP_ROM_PTR(&mp_identity_obj) },
@@ -205,6 +239,10 @@ static const mp_rom_map_elem_t mp_module_micropython_globals_table[] = {
     #endif
     #if MICROPY_ENABLE_SCHEDULER
     { MP_ROM_QSTR(MP_QSTR_schedule), MP_ROM_PTR(&mp_micropython_schedule_obj) },
+    #endif
+    #if MICROPY_PY_MICROPYTHON_FUN_TO_MPY
+    { MP_ROM_QSTR(MP_QSTR_fun_to_mpy), MP_ROM_PTR(&mp_micropython_fun_to_mpy_obj) },
+    { MP_ROM_QSTR(MP_QSTR_fun_from_mpy), MP_ROM_PTR(&mp_micropython_fun_from_mpy_obj) },
     #endif
 };
 

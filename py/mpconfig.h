@@ -1319,6 +1319,11 @@ typedef double mp_float_t;
 #define MICROPY_PY_MICROPYTHON_RINGIO (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EXTRA_FEATURES)
 #endif
 
+// Whether to provide "micropython.fun_to_mpy" and "micropython.fun_from_mpy" functions
+#ifndef MICROPY_PY_MICROPYTHON_FUN_TO_MPY
+#define MICROPY_PY_MICROPYTHON_FUN_TO_MPY (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EVERYTHING)
+#endif
+
 // Whether to provide "array" module. Note that large chunk of the
 // underlying code is shared with "bytearray" builtin type, so to
 // get real savings, it should be disabled too.
