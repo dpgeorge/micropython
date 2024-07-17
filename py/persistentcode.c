@@ -36,6 +36,8 @@
 #include "py/objstr.h"
 #include "py/mpthread.h"
 
+#define MICROPY_PERSISTENT_CODE_SAVE_FUN (1)
+
 #if MICROPY_PERSISTENT_CODE_LOAD || MICROPY_PERSISTENT_CODE_SAVE
 
 #include "py/smallint.h"
