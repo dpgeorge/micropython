@@ -63,9 +63,11 @@ void pendsv_kbd_intr(void) {
     if (MP_STATE_MAIN_THREAD(mp_pending_exception) == MP_OBJ_NULL) {
         mp_sched_keyboard_interrupt();
     } else {
+        /*
         MP_STATE_MAIN_THREAD(mp_pending_exception) = MP_OBJ_NULL;
         pendsv_object = &MP_STATE_VM(mp_kbd_exception);
         SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+        */
     }
 }
 
