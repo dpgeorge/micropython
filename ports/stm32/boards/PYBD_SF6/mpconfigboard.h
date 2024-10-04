@@ -35,7 +35,7 @@
 #undef MICROPY_HW_CLK_PLLQ
 #undef MICROPY_HW_FLASH_LATENCY
 
-#define MICROPY_HW_BOARD_NAME       "PYBD-SF6W"
+#define MICROPY_HW_BOARD_NAME       "PYBD-SF6-W16F3"
 #define MICROPY_HW_MCU_NAME         "STM32F767IIK"
 
 // HSE is 25MHz, run SYS at 144MHz
@@ -64,3 +64,7 @@
 #define MICROPY_HW_ETH_RMII_TX_EN   (pyb_pin_W8)
 #define MICROPY_HW_ETH_RMII_TXD0    (pyb_pin_W45)
 #define MICROPY_HW_ETH_RMII_TXD1    (pyb_pin_W49)
+
+// Murata 1YN configuration
+#define CYW43_CHIPSET_FIRMWARE_INCLUDE_FILE     "ports/stm32/boards/PYBD_SF6/w43439_sdio_1yn_7_95_59_combined.h"
+#define CYW43_WIFI_NVRAM_INCLUDE_FILE           "ports/stm32/boards/PYBD_SF6/wifi_nvram_1yn.h"
