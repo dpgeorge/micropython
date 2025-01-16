@@ -68,7 +68,10 @@ void board_sleep(int value);
 #define MICROPY_HW_SOFTQSPI_SCK_LOW(self) (GPIOE->BSRR = (0x10000 << 11))
 #define MICROPY_HW_SOFTQSPI_SCK_HIGH(self) (GPIOE->BSRR = (1 << 11))
 #define MICROPY_HW_SOFTQSPI_NIBBLE_READ(self) ((GPIOE->IDR >> 7) & 0xf)
-#define MICROPY_HW_SPIFLASH_SIZE_BITS (64 * 1024 * 1024)
+//#define MICROPY_HW_SPIFLASH_SIZE_BITS (mp_spiflash_size(&spi_bdev.spiflash))
+//struct _mp_spiflash_t;
+//unsigned int mp_spiflash_size(struct _mp_spiflash_t *spiflash);
+#define MICROPY_HW_SPIFLASH_SIZE_BYTES (1 << spi_bdev.spiflash.chip_params->memory_size_bytes_log2)
 #define MICROPY_HW_SPIFLASH_CS      (pyb_pin_QSPI1_CS)
 #define MICROPY_HW_SPIFLASH_SCK     (pyb_pin_QSPI1_CLK)
 #define MICROPY_HW_SPIFLASH_IO0     (pyb_pin_QSPI1_D0)
@@ -84,7 +87,7 @@ extern struct _spi_bdev_t spi_bdev;
 #endif
 #define MICROPY_HW_BDEV_SPIFLASH    (&spi_bdev)
 #define MICROPY_HW_BDEV_SPIFLASH_CONFIG (&spiflash_config)
-#define MICROPY_HW_BDEV_SPIFLASH_SIZE_BYTES (MICROPY_HW_SPIFLASH_SIZE_BITS / 8)
+#define MICROPY_HW_BDEV_SPIFLASH_SIZE_BYTES (MICROPY_HW_SPIFLASH_SIZE_BYTES)
 #define MICROPY_HW_BDEV_SPIFLASH_EXTENDED (&spi_bdev) // for extended block protocol
 
 // SPI flash #2, to be memory mapped
@@ -207,6 +210,7 @@ extern struct _spi_bdev_t spi_bdev2;
 #define MBOOT_I2C_SDA               (pin_B9)
 #define MBOOT_I2C_ALTFUNC           (4)
 
+#if 0
 #define MBOOT_SPIFLASH_ADDR         (0x80000000)
 #define MBOOT_SPIFLASH_BYTE_SIZE    (8 * 1024 * 1024)
 #define MBOOT_SPIFLASH_LAYOUT       "/0x80000000/2048*4Kg"
@@ -220,6 +224,7 @@ extern struct _spi_bdev_t spi_bdev2;
 #define MBOOT_SPIFLASH2_ERASE_BLOCKS_PER_PAGE (1)
 #define MBOOT_SPIFLASH2_SPIFLASH    (&spi_bdev2.spiflash)
 #define MBOOT_SPIFLASH2_CONFIG      (&spiflash2_config)
+#endif
 
 #define MBOOT_BOARD_EARLY_INIT(initial_r0) mboot_board_early_init()
 void mboot_board_early_init(void);

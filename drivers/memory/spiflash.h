@@ -66,8 +66,14 @@ typedef struct _mp_spiflash_config_t {
     #endif
 } mp_spiflash_config_t;
 
+typedef struct _mp_spiflash_chip_params_t {
+    uint8_t memory_size_bytes_log2;
+    uint8_t qaddr_qdata_num_dummy_bytes;
+} mp_spiflash_chip_params_t;
+
 typedef struct _mp_spiflash_t {
     const mp_spiflash_config_t *config;
+    const mp_spiflash_chip_params_t *chip_params;
     volatile uint32_t flags;
 } mp_spiflash_t;
 

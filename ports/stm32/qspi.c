@@ -56,14 +56,6 @@
 #define MICROPY_HW_QSPI_MPU_REGION_SIZE ((1 << (MICROPY_HW_QSPIFLASH_SIZE_BITS_LOG2 - 3)) >> 20)
 #endif
 
-#if (MICROPY_HW_QSPIFLASH_SIZE_BITS_LOG2 - 3 - 1) >= 24
-#define QSPI_CMD 0xec
-#define QSPI_ADSIZE 3
-#else
-#define QSPI_CMD 0xeb
-#define QSPI_ADSIZE 2
-#endif
-
 static inline void qspi_mpu_disable_all(void) {
     // Configure MPU to disable access to entire QSPI region, to prevent CPU
     // speculative execution from accessing this region and modifying QSPI registers.
@@ -150,8 +142,18 @@ void qspi_init(void) {
     ;
 }
 
-void qspi_memory_map(void) {
+void qspi_memory_map(mp_spiflash_chip_params_t *chip_params) {
     // Enable memory-mapped mode
+
+    uint8_t cmd;
+    uint8_t adsize;
+    if (chip_params->memory_size_bytes_log2 - 1 >= 24) {
+        cmd = 0xec;
+        adsize = 3;
+    } else {
+        cmd = 0xeb;
+        adsize = 2;
+    }
 
     QUADSPI->ABR = 0; // disable continuous read mode
 
@@ -160,19 +162,19 @@ void qspi_memory_map(void) {
             | 0 << QUADSPI_CCR_SIOO_Pos // send instruction every transaction
             | 3 << QUADSPI_CCR_FMODE_Pos // memory-mapped mode
             | 3 << QUADSPI_CCR_DMODE_Pos // data on 4 lines
-            | 8 << QUADSPI_CCR_DCYC_Pos // 8 dummy cycles
+            | (2 * chip_params->qaddr_qdata_num_dummy_bytes) << QUADSPI_CCR_DCYC_Pos // 2N dummy cycles
             | 0 << QUADSPI_CCR_ABSIZE_Pos // 8-bit alternate byte
             | 3 << QUADSPI_CCR_ABMODE_Pos // alternate byte on 4 lines
-            | QSPI_ADSIZE << QUADSPI_CCR_ADSIZE_Pos
+            | adsize << QUADSPI_CCR_ADSIZE_Pos
             | 3 << QUADSPI_CCR_ADMODE_Pos // address on 4 lines
             | 1 << QUADSPI_CCR_IMODE_Pos // instruction on 1 line
-            | QSPI_CMD << QUADSPI_CCR_INSTRUCTION_Pos
+            | cmd << QUADSPI_CCR_INSTRUCTION_Pos
     ;
 
     qspi_mpu_enable_mapped();
 }
 
-static int qspi_ioctl(void *self_in, uint32_t cmd) {
+static int qspi_ioctl(void *self_in, uint32_t cmd, void *arg) {
     (void)self_in;
     switch (cmd) {
         case MP_QSPI_IOCTL_INIT:
@@ -190,7 +192,7 @@ static int qspi_ioctl(void *self_in, uint32_t cmd) {
             break;
         case MP_QSPI_IOCTL_BUS_RELEASE:
             // Switch to memory-map mode when bus is idle
-            qspi_memory_map();
+            qspi_memory_map((mp_spiflash_chip_params_t *)arg);
             break;
     }
     return 0; // success
@@ -350,7 +352,7 @@ static int qspi_read_cmd(void *self_in, uint8_t cmd, size_t len, uint32_t *dest)
     return 0;
 }
 
-static int qspi_read_cmd_qaddr_qdata(void *self_in, uint8_t cmd, uint32_t addr, size_t len, uint8_t *dest) {
+static int qspi_read_cmd_qaddr_qdata(void *self_in, uint8_t cmd, uint32_t addr, uint8_t num_dummy_bytes, size_t len, uint8_t *dest) {
     (void)self_in;
 
     uint8_t adsize = MICROPY_HW_SPI_ADDR_IS_32BIT(addr) ? 3 : 2;
@@ -364,7 +366,7 @@ static int qspi_read_cmd_qaddr_qdata(void *self_in, uint8_t cmd, uint32_t addr, 
             | 0 << QUADSPI_CCR_SIOO_Pos // send instruction every transaction
             | 1 << QUADSPI_CCR_FMODE_Pos // indirect read mode
             | 3 << QUADSPI_CCR_DMODE_Pos // data on 4 lines
-            | 8 << QUADSPI_CCR_DCYC_Pos // 8 dummy cycles
+            | (2 * num_dummy_bytes) << QUADSPI_CCR_DCYC_Pos // 2N dummy cycles
             | 0 << QUADSPI_CCR_ABSIZE_Pos // 8-bit alternate byte
             | 3 << QUADSPI_CCR_ABMODE_Pos // alternate byte on 4 lines
             | adsize << QUADSPI_CCR_ADSIZE_Pos // 32 or 24-bit address size

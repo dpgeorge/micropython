@@ -27,10 +27,11 @@
 #define MICROPY_INCLUDED_STM32_QSPI_H
 
 #include "drivers/bus/qspi.h"
+#include "drivers/memory/spiflash.h"
 
 extern const mp_qspi_proto_t qspi_proto;
 
 void qspi_init(void);
-void qspi_memory_map(void);
+void qspi_memory_map(mp_spiflash_chip_params_t *chip_params);
 
 #endif // MICROPY_INCLUDED_STM32_QSPI_H

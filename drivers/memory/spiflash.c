@@ -58,17 +58,27 @@
 #define PAGE_SIZE (256) // maximum bytes we can write in one SPI transfer
 #define SECTOR_SIZE MP_SPIFLASH_ERASE_BLOCK_SIZE
 
+static mp_spiflash_chip_params_t chip_params_at25sf161 = {
+    .memory_size_bytes_log2 = 21,
+    .qaddr_qdata_num_dummy_bytes = 2,
+};
+
+static mp_spiflash_chip_params_t chip_params_s25fl064 = {
+    .memory_size_bytes_log2 = 23,
+    .qaddr_qdata_num_dummy_bytes = 4,
+};
+
 static void mp_spiflash_acquire_bus(mp_spiflash_t *self) {
     const mp_spiflash_config_t *c = self->config;
     if (c->bus_kind == MP_SPIFLASH_BUS_QSPI) {
-        c->bus.u_qspi.proto->ioctl(c->bus.u_qspi.data, MP_QSPI_IOCTL_BUS_ACQUIRE);
+        c->bus.u_qspi.proto->ioctl(c->bus.u_qspi.data, MP_QSPI_IOCTL_BUS_ACQUIRE, (void *)self->chip_params);
     }
 }
 
 static void mp_spiflash_release_bus(mp_spiflash_t *self) {
     const mp_spiflash_config_t *c = self->config;
     if (c->bus_kind == MP_SPIFLASH_BUS_QSPI) {
-        c->bus.u_qspi.proto->ioctl(c->bus.u_qspi.data, MP_QSPI_IOCTL_BUS_RELEASE);
+        c->bus.u_qspi.proto->ioctl(c->bus.u_qspi.data, MP_QSPI_IOCTL_BUS_RELEASE, (void *)self->chip_params);
     }
 }
 
@@ -103,7 +113,7 @@ static int mp_spiflash_transfer_cmd_addr_data(mp_spiflash_t *self, uint8_t cmd, 
         mp_hal_pin_write(c->bus.u_spi.cs, 1);
     } else {
         if (dest != NULL) {
-            ret = c->bus.u_qspi.proto->read_cmd_qaddr_qdata(c->bus.u_qspi.data, cmd, addr, len, dest);
+            ret = c->bus.u_qspi.proto->read_cmd_qaddr_qdata(c->bus.u_qspi.data, cmd, addr, self->chip_params->qaddr_qdata_num_dummy_bytes, len, dest);
         } else {
             ret = c->bus.u_qspi.proto->write_cmd_addr_data(c->bus.u_qspi.data, cmd, addr, len, src);
         }
@@ -167,6 +177,7 @@ static inline void mp_spiflash_deepsleep_internal(mp_spiflash_t *self, int value
 }
 
 void mp_spiflash_init(mp_spiflash_t *self) {
+    self->chip_params = &chip_params_at25sf161;
     self->flags = 0;
 
     if (self->config->bus_kind == MP_SPIFLASH_BUS_SPI) {
@@ -174,7 +185,7 @@ void mp_spiflash_init(mp_spiflash_t *self) {
         mp_hal_pin_output(self->config->bus.u_spi.cs);
         self->config->bus.u_spi.proto->ioctl(self->config->bus.u_spi.data, MP_SPI_IOCTL_INIT);
     } else {
-        self->config->bus.u_qspi.proto->ioctl(self->config->bus.u_qspi.data, MP_QSPI_IOCTL_INIT);
+        self->config->bus.u_qspi.proto->ioctl(self->config->bus.u_qspi.data, MP_QSPI_IOCTL_INIT, NULL);
     }
 
     mp_spiflash_acquire_bus(self);
@@ -190,15 +201,29 @@ void mp_spiflash_init(mp_spiflash_t *self) {
     mp_hal_delay_ms(1);
     #endif
 
-    #if defined(CHECK_DEVID)
-    // Validate device id
+    // Read device id.
     uint32_t devid;
     int ret = mp_spiflash_read_cmd(self, CMD_RD_DEVID, 3, &devid);
+    if (ret != 0) {
+        mp_spiflash_release_bus(self);
+        return;
+    }
+
+    #if defined(CHECK_DEVID)
+    // Validate device id
     if (ret != 0 || devid != CHECK_DEVID) {
         mp_spiflash_release_bus(self);
         return;
     }
     #endif
+
+    if (devid == 0x01861f) {
+        // Adesto AT25SF161 16-MBit.
+        self->chip_params = &chip_params_at25sf161;
+    } else if (devid == 0x176001) {
+        // Infineon S25FL064 64-MBit.
+        self->chip_params = &chip_params_s25fl064;
+    }
 
     if (self->config->bus_kind == MP_SPIFLASH_BUS_QSPI) {
         // Set QE bit
