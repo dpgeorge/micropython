@@ -208,16 +208,16 @@ extern struct _spi_bdev_t spi_bdev2;
 #define MBOOT_I2C_ALTFUNC           (4)
 
 #define MBOOT_SPIFLASH_ADDR         (0x80000000)
-#define MBOOT_SPIFLASH_BYTE_SIZE    (64 * 32 * 1024)
-#define MBOOT_SPIFLASH_LAYOUT       "/0x80000000/64*32Kg"
-#define MBOOT_SPIFLASH_ERASE_BLOCKS_PER_PAGE (32 / 4)
+#define MBOOT_SPIFLASH_BYTE_SIZE    (8 * 1024 * 1024)
+#define MBOOT_SPIFLASH_LAYOUT       "/0x80000000/2048*4Kg"
+#define MBOOT_SPIFLASH_ERASE_BLOCKS_PER_PAGE (1)
 #define MBOOT_SPIFLASH_SPIFLASH     (&spi_bdev.spiflash)
 #define MBOOT_SPIFLASH_CONFIG       (&spiflash_config)
 
 #define MBOOT_SPIFLASH2_ADDR        (0x90000000)
-#define MBOOT_SPIFLASH2_BYTE_SIZE   (2048 * 4 * 1024)
+#define MBOOT_SPIFLASH2_BYTE_SIZE   (8 * 1024 * 1024)
 #define MBOOT_SPIFLASH2_LAYOUT      "/0x90000000/2048*4Kg"
-#define MBOOT_SPIFLASH2_ERASE_BLOCKS_PER_PAGE (4 / 4)
+#define MBOOT_SPIFLASH2_ERASE_BLOCKS_PER_PAGE (1)
 #define MBOOT_SPIFLASH2_SPIFLASH    (&spi_bdev2.spiflash)
 #define MBOOT_SPIFLASH2_CONFIG      (&spiflash2_config)
 
