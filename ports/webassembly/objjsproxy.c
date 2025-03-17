@@ -273,6 +273,22 @@ static mp_obj_t jsproxy_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const
     }
 }
 
+static mp_obj_t jsproxy_unary_op(mp_unary_op_t op, mp_obj_t self_in) {
+    mp_obj_jsproxy_t *self = MP_OBJ_TO_PTR(self_in);
+    switch (op) {
+        case MP_UNARY_OP_LEN: {
+            uint32_t out[PVN];
+            if (lookup_attr(self->ref, "length", out)) {
+                return proxy_convert_js_to_mp_obj_cside(out);
+            }
+            return MP_OBJ_NULL; // op not supported
+        }
+
+        default:
+            return MP_OBJ_NULL; // op not supported
+    }
+}
+
 static mp_obj_t jsproxy_binary_op(mp_binary_op_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
     if (!mp_obj_is_type(rhs_in, &mp_type_jsproxy)) {
         return MP_OBJ_NULL; // op not supported
@@ -593,6 +609,7 @@ MP_DEFINE_CONST_OBJ_TYPE(
     MP_TYPE_FLAG_ITER_IS_GETITER,
     print, jsproxy_print,
     call, jsproxy_call,
+    unary_op, jsproxy_unary_op,
     binary_op, jsproxy_binary_op,
     attr, mp_obj_jsproxy_attr,
     subscr, jsproxy_subscr,
