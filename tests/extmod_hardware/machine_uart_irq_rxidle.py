@@ -25,6 +25,10 @@ elif "esp32" in sys.platform:
     uart_id = 1
     tx_pin = 4
     rx_pin = 5
+    if "ESP32S2" in sys.implementation._machine:
+        # For UM FeatherS2
+        tx_pin = 6
+        rx_pin = 5
 elif "mimxrt" in sys.platform:
     uart_id = 1
     tx_pin = None
