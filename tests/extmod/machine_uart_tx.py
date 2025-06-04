@@ -44,6 +44,9 @@ elif "samd" in sys.platform:
     pins = {"tx": "D1", "rx": "D0"}
     timing_margin_us = 300
     bit_margin = 1
+elif "zephyr-frdm_k64f" in sys.implementation._machine:
+    uart_id = "uart3"
+    pins = {}  # TX/RX=PTC17/PTC16
 else:
     print("SKIP")
     raise SystemExit
