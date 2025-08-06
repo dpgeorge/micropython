@@ -30,6 +30,8 @@ elif "mimxrt" in sys.platform:
 elif "pyboard" in sys.platform:
     if "STM32WB" in sys.implementation._machine:
         uart_id = "LP1"
+    elif "PYBLITE" in sys.implementation._machine:
+        uart_id = "XA"
     else:
         uart_id = 4
     pins = {}

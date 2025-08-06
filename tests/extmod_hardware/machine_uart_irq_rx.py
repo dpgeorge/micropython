@@ -31,6 +31,8 @@ elif "pyboard" in sys.platform:
     if "STM32WB" in sys.implementation._machine:
         # LPUART(1) is on PA2/PA3
         uart_id = "LP1"
+    elif "PYBLITE" in sys.implementation._machine:
+        uart_id = "XA"
     else:
         # UART(4) is on PA0/PA1
         uart_id = 4
