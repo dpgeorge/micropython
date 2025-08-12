@@ -54,6 +54,7 @@ EXPORTED_FUNCTIONS_EXTRA += ,\
 	_mp_js_do_exec_async,\
 	_mp_js_do_import,\
 	_mp_js_register_js_module,\
+	_mp_js_register_romfs,\
 	_proxy_c_free_obj,\
 	_proxy_c_init,\
 	_proxy_c_to_js_call,\
@@ -71,6 +72,7 @@ EXPORTED_FUNCTIONS_EXTRA += ,\
 	_proxy_convert_mp_to_js_obj_cside
 
 EXPORTED_RUNTIME_METHODS_EXTRA += ,\
+	HEAPU8,\
 	PATH,\
 	PATH_FS,\
 	UTF8ToString,\

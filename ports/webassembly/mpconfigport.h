@@ -64,6 +64,8 @@
 #define MICROPY_VFS                 (1)
 #endif
 #define MICROPY_VFS_POSIX           (MICROPY_VFS)
+#define MICROPY_VFS_ROM             (MICROPY_VFS)
+#define MICROPY_VFS_ROM_IOCTL       (MICROPY_VFS_ROM)
 #define MICROPY_PY_SYS_PLATFORM     "webassembly"
 
 #ifndef MICROPY_PY_JS

@@ -248,3 +248,32 @@ void MP_WEAK __assert_func(const char *file, int line, const char *func, const c
     __fatal_error("Assertion failed");
 }
 #endif
+
+#if MICROPY_VFS_ROM_IOCTL
+
+#include "py/objarray.h"
+
+static MP_DEFINE_MEMORYVIEW_OBJ(romfs_obj, 'B', 0, 0, NULL);
+
+void mp_js_register_romfs(void *addr, size_t len) {
+    romfs_obj.len = len;
+    romfs_obj.items = addr;
+}
+
+mp_obj_t mp_vfs_rom_ioctl(size_t n_args, const mp_obj_t *args) {
+    switch (mp_obj_get_int(args[0])) {
+        case MP_VFS_ROM_IOCTL_GET_NUMBER_OF_SEGMENTS:
+            return MP_OBJ_NEW_SMALL_INT(1);
+        case MP_VFS_ROM_IOCTL_GET_SEGMENT:
+            return MP_OBJ_FROM_PTR(&romfs_obj);
+        default:
+            return MP_OBJ_NEW_SMALL_INT(-MP_EINVAL);
+    }
+}
+
+#else
+
+void mp_js_register_romfs(void *addr, size_t len) {
+}
+
+#endif
