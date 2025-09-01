@@ -201,10 +201,11 @@ function proxy_convert_js_to_mp_obj_jsside_helper(js_obj, out, allow_pyproxy) {
         Module.stringToUTF8(js_obj, buf, len + 1);
         Module.setValue(out + 4, len, "i32");
         Module.setValue(out + 8, buf, "i32");
-    } else if (allow_pyproxy &&
+    } else if (
+        allow_pyproxy &&
         (js_obj instanceof PyProxy ||
-        (typeof js_obj === "function" && "_ref" in js_obj) ||
-        js_obj instanceof PyProxyThenable)
+            (typeof js_obj === "function" && "_ref" in js_obj) ||
+            js_obj instanceof PyProxyThenable)
     ) {
         kind = PROXY_KIND_JS_PYPROXY;
         Module.setValue(out + 4, js_obj._ref, "i32");
