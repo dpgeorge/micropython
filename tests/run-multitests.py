@@ -8,12 +8,13 @@
 # Runs a test suite that relies on two micropython instances/devices
 # interacting in some way. Typically used to test networking / bluetooth etc.
 
-
+from __future__ import annotations
 import sys, os, time, re, select
 import argparse
 import itertools
 import subprocess
 import tempfile
+import dataclasses
 
 run_tests_module = __import__("run-tests")
 
@@ -264,6 +265,9 @@ class PyInstancePyboard(PyInstance):
 
     def start_script(self, script):
         self.pyb.enter_raw_repl()
+        if hasattr(self, 'target_wiring_script'):
+            cmd = "import sys;sys.modules['target_wiring']=__build_class__(lambda:exec(" + repr(self.target_wiring_script) + "),'target_wiring')"
+            self.pyb.exec_(cmd)
         self.pyb.exec_raw_no_follow(script)
         self.finished = False
 
@@ -318,7 +322,7 @@ def trace_instance_output(instance_idx, line):
         sys.stdout.flush()
 
 
-def run_test_on_instances(test_file, num_instances, instances):
+def run_test_on_instances(test_file, num_instances, instances: tuple[TestInstance, ...]):
     global trace_t0
     trace_t0 = time.time()
 
@@ -336,12 +340,12 @@ def run_test_on_instances(test_file, num_instances, instances):
             injected_globals += "HOST_IP = '" + get_host_ip() + "'\n"
 
     if cmd_args.trace_output:
-        print("TRACE {}:".format("|".join(str(i) for i in instances)))
+        print("TRACE {}:".format("|".join(str(i.pyinstance) for i in instances)))
 
     # Start all instances running, in order, waiting until they signal they are ready
     for idx in range(num_instances):
         append_code = APPEND_CODE_TEMPLATE.format(injected_globals, idx)
-        instance = instances[idx]
+        instance = instances[idx].pyinstance
         instance.start_file(test_file, append=append_code)
         last_read_time = time.time()
         while True:
@@ -382,7 +386,7 @@ def run_test_on_instances(test_file, num_instances, instances):
             num_running = 0
             num_output = 0
             for idx in range(num_instances):
-                instance = instances[idx]
+                instance = instances[idx].pyinstance
                 if instance.is_finished():
                     continue
                 num_running += 1
@@ -412,7 +416,7 @@ def run_test_on_instances(test_file, num_instances, instances):
                             last_read_time[idx] = time.time()
 
                     if out.startswith("BROADCAST "):
-                        for instance2 in instances:
+                        for instance2 in [i.pyinstance for i in instances]:
                             if instance2 is not instance:
                                 instance2.write(bytes(out, "ascii") + b"\r\n")
                     elif out.startswith("OUTPUT_METRIC "):
@@ -431,7 +435,7 @@ def run_test_on_instances(test_file, num_instances, instances):
 
     # Stop all instances
     for idx in range(num_instances):
-        instances[idx].stop()
+        instances[idx].pyinstance.stop()
 
     output_str = ""
     for idx, lines in enumerate(output):
@@ -485,11 +489,11 @@ def print_diff(a, b):
     os.unlink(b_path)
 
 
-def run_tests(test_files, instances_truth, instances_test):
+def run_tests(test_files, instances_truth, instances_test: tuple[TestInstance, ...]):
     test_results = []
 
     for test_file, num_instances in test_files:
-        instances_str = "|".join(str(instances_test[i]) for i in range(num_instances))
+        instances_str = "|".join(str(instances_test[i].pyinstance) for i in range(num_instances))
         print("{} on {}: ".format(test_file, instances_str), end="")
         if cmd_args.show_output or cmd_args.trace_output:
             print()
@@ -548,6 +552,20 @@ def run_tests(test_files, instances_truth, instances_test):
     return test_results
 
 
+@dataclasses.dataclass
+class TestInstance:
+    pyinstance: PyInstance
+    tw_source: str
+    "The pathname to a file in tests/target_wiring"
+
+    @property
+    def target_wiring_specified(self) -> bool:
+        return self.tw_source != ""
+
+    def __repr__(self):
+        return f"{self.pyinstance.device}({self.tw_source})"
+
+
 def main():
     global cmd_args
 
@@ -585,6 +603,12 @@ def main():
         default=run_tests_module.base_path("results"),
         help="directory for test results",
     )
+    cmd_parser.add_argument(
+        "--target-wiring",
+        action="append",
+        default=[],
+        help="force the given script to be used as target_wiring.py",
+    )
     cmd_parser.add_argument("files", nargs="+", help="input test files")
     cmd_args = cmd_parser.parse_args()
 
@@ -596,27 +620,50 @@ def main():
 
     instances_truth = [PyInstanceSubProcess([PYTHON_TRUTH]) for _ in range(max_instances)]
 
-    instances_test = []
-    for i in cmd_args.test_instance:
+    # Make sure the count matches: test_instance, target_wiring, instances_test
+    if len(cmd_args.target_wiring) == 0:
+        cmd_args.target_wiring = [""] * len(cmd_args.test_instance)
+
+    if len(cmd_args.test_instance) != len(cmd_args.target_wiring):
+        print(
+            "The argument count of '--target-wiring' must match '--target-instance'",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    instances_test: list[TestInstance] = []
+    for i, w in zip(cmd_args.test_instance, cmd_args.target_wiring, strict=True):
         # Each instance arg is <cmd>,ENV=VAR,ENV=VAR...
         i = i.split(",")
         cmd = i[0]
         env = i[1:]
         if cmd.startswith("exec:"):
-            instances_test.append(PyInstanceSubProcess([cmd[len("exec:") :]], env))
+            pyinstance = PyInstanceSubProcess([cmd[len("exec:") :]], env)
         elif cmd == "unix":
-            instances_test.append(PyInstanceSubProcess([MICROPYTHON], env))
+            pyinstance = PyInstanceSubProcess([MICROPYTHON], env)
         elif cmd == "cpython":
-            instances_test.append(PyInstanceSubProcess([CPYTHON3], env))
+            pyinstance = PyInstanceSubProcess([CPYTHON3], env)
         elif cmd == "webassembly" or cmd.startswith("execpty:"):
             print("unsupported instance string: {}".format(cmd), file=sys.stderr)
             sys.exit(2)
         else:
             device = run_tests_module.convert_device_shortcut_to_real_device(cmd)
-            instances_test.append(PyInstancePyboard(device))
+            pyinstance = PyInstancePyboard(device)
+
+        instances_test.append(TestInstance(pyinstance=pyinstance, tw_source=w))
 
     for _ in range(max_instances - len(instances_test)):
-        instances_test.append(PyInstanceSubProcess([MICROPYTHON]))
+        instances_test.append(
+            TestInstance(pyinstance=PyInstanceSubProcess([MICROPYTHON]), tw_source="")
+        )
+
+    for instance in instances_test:
+        run_tests_module.detect_target_wiring_script2(
+            pyb=instance.pyinstance,
+            target_wiring=instance.tw_source,
+            platform=None,  # TODO: correct parameter
+            build="",  # TODO: correct parameter
+        )
 
     os.makedirs(cmd_args.result_dir, exist_ok=True)
     all_pass = True
@@ -632,7 +679,7 @@ def main():
         for i in instances_truth:
             i.close()
         for i in instances_test:
-            i.close()
+            i.pyinstance.close()
 
     if not all_pass:
         sys.exit(1)

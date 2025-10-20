@@ -15,32 +15,34 @@ if not hasattr(I2CTarget, "IRQ_ADDR_MATCH_READ"):
     print("SKIP")
     raise SystemExit
 
+from target_wiring import i2c_args, i2c_kwargs
+
 ADDR = 67
 clock_stretch_us = 200
 
 # Configure pins based on the target.
-if sys.platform == "alif":
-    i2c_args = (1,)  # pins P3_7/P3_6
-    i2c_kwargs = {}
-elif sys.platform == "mimxrt":
-    i2c_args = (0,)  # pins 19/18 on Teensy 4.x
-    i2c_kwargs = {}
-    clock_stretch_us = 50  # mimxrt cannot delay too long in the IRQ handler
-elif sys.platform == "rp2":
-    i2c_args = (0,)
-    i2c_kwargs = {"scl": 9, "sda": 8}
-elif sys.platform == "pyboard":
-    i2c_args = ("Y",)
-    i2c_kwargs = {}
-elif sys.platform == "samd":
-    i2c_args = ()  # pins SCL/SDA
-    i2c_kwargs = {}
-elif "zephyr-rpi_pico" in sys.implementation._machine:
-    i2c_args = ("i2c1",)  # on gpio7/gpio6
-    i2c_kwargs = {}
-else:
-    print("Please add support for this test on this platform.")
-    raise SystemExit
+# if sys.platform == "alif":
+#     i2c_args = (1,)  # pins P3_7/P3_6
+#     i2c_kwargs = {}
+# elif sys.platform == "mimxrt":
+#     i2c_args = (0,)  # pins 19/18 on Teensy 4.x
+#     i2c_kwargs = {}
+#     clock_stretch_us = 50  # mimxrt cannot delay too long in the IRQ handler
+# elif sys.platform == "rp2":
+#     i2c_args = (0,)
+#     i2c_kwargs = {"scl": 9, "sda": 8}
+# elif sys.platform == "pyboard":
+#     i2c_args = ("Y",)
+#     i2c_kwargs = {}
+# elif sys.platform == "samd":
+#     i2c_args = ()  # pins SCL/SDA
+#     i2c_kwargs = {}
+# elif "zephyr-rpi_pico" in sys.implementation._machine:
+#     i2c_args = ("i2c1",)  # on gpio7/gpio6
+#     i2c_kwargs = {}
+# else:
+#     print("Please add support for this test on this platform.")
+#     raise SystemExit
 
 
 def simple_irq(i2c_target):

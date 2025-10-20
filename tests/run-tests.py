@@ -359,19 +359,27 @@ def detect_test_platform(pyb, args):
 
 
 def detect_target_wiring_script(pyb, args):
+    # TODO: How to detect 'platform' and 'build'
+    detect_target_wiring_script2(
+        pyb, target_wiring=args.target_wiring, platform=args.platform, build=args.build
+    )
+
+
+def detect_target_wiring_script2(pyb, target_wiring, platform, build):
     tw_data = b""
     tw_source = None
-    if args.target_wiring:
+    if target_wiring:
         # A target_wiring path is explicitly provided, so use that.
-        tw_source = args.target_wiring
+        tw_source = target_wiring
         with open(tw_source, "rb") as f:
             tw_data = f.read()
+
     elif hasattr(pyb, "exec_raw") and pyb.exec_raw("import target_wiring") == (b"", b""):
         # The board already has a target_wiring module available, so use that.
         tw_source = "on-device"
     else:
-        port = platform_to_port(args.platform)
-        build = args.build
+        port = platform_to_port(platform)
+        build = build
         tw_board_exact = None
         tw_board_partial = None
         tw_port = None
@@ -1232,6 +1240,7 @@ def create_test_report(args, test_results, testcase_count=None):
             },
             f,
             default=to_json,
+            indent=2,
         )
 
     # Return True only if all tests succeeded.
