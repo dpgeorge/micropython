@@ -73,6 +73,7 @@ function proxy_js_init() {
             Module.ccall("proxy_c_free_obj", "null", ["number"], [cRef]);
         },
     );
+    globalThis.free_block_cb = null;
 }
 
 // Check if the c_ref (Python proxy index) has a corresponding JavaScript-side PyProxy

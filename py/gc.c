@@ -627,6 +627,9 @@ static void gc_sweep_free_blocks(void) {
             MICROPY_GC_HOOK_LOOP(block);
             switch (ATB_GET_KIND(area, block)) {
                 case AT_HEAD:
+                    #ifdef MICROPY_GC_HOOK_FREE_BLOCK
+                    MICROPY_GC_HOOK_FREE_BLOCK((void *)PTR_FROM_BLOCK(area, block));
+                    #endif
                     free_tail = 1;
                     DEBUG_printf("gc_sweep_free_blocks(%p)\n", (void *)PTR_FROM_BLOCK(area, block));
                     #if MICROPY_PY_GC_COLLECT_RETVAL

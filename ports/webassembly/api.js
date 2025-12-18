@@ -132,6 +132,9 @@ export async function loadMicroPython(options) {
                 delete this.__dict__[key];
             },
         },
+        registerGcFreeCallback(f) {
+            globalThis.free_block_cb = f;
+        },
         registerJsModule(name, module) {
             const value = Module._malloc(3 * 4);
             proxy_convert_js_to_mp_obj_jsside(module, value);

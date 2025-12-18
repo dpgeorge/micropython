@@ -38,6 +38,8 @@
 #define MICROPY_CONFIG_ROM_LEVEL (MICROPY_CONFIG_ROM_LEVEL_EXTRA_FEATURES)
 #endif
 
+#define MICROPY_GC_HOOK_FREE_BLOCK(ptr) webassembly_free_block(ptr)
+
 #define MICROPY_ALLOC_PATH_MAX      (256)
 #define MICROPY_PERSISTENT_CODE_LOAD (1)
 #define MICROPY_COMP_ALLOW_TOP_LEVEL_AWAIT (1)
@@ -119,3 +121,4 @@ typedef long mp_off_t;
 extern const struct _mp_print_t mp_stderr_print;
 
 uint32_t mp_js_random_u32(void);
+void webassembly_free_block(void *ptr);

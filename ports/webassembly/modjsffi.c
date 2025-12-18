@@ -100,6 +100,12 @@ static mp_obj_t mp_jsffi_mem_info(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mp_jsffi_mem_info_obj, mp_jsffi_mem_info);
 
+EM_JS(void, webassembly_free_block, (void *value), {
+    if (free_block_cb !== null) {
+        free_block_cb(value);
+    }
+});
+
 static const mp_rom_map_elem_t mp_module_jsffi_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_jsffi) },
 
