@@ -532,6 +532,9 @@ void gc_sweep_all(void) {
     gc_collect_end();
 }
 
+void mp_weakref_about_to_be_freed(void *ptr);
+void mp_weakref_sweep(void);
+
 void gc_collect_end(void) {
     gc_deal_with_stack_overflow();
     gc_sweep_run_finalisers();
@@ -544,6 +547,7 @@ void gc_collect_end(void) {
     }
     MP_STATE_THREAD(gc_lock_depth) &= ~GC_COLLECT_FLAG;
     GC_EXIT();
+    mp_weakref_sweep();
 }
 
 static void gc_deal_with_stack_overflow(void) {
@@ -630,6 +634,7 @@ static void gc_sweep_free_blocks(void) {
                     #ifdef MICROPY_GC_HOOK_FREE_BLOCK
                     MICROPY_GC_HOOK_FREE_BLOCK((void *)PTR_FROM_BLOCK(area, block));
                     #endif
+                    mp_weakref_about_to_be_freed((void *)PTR_FROM_BLOCK(area, block));
                     free_tail = 1;
                     DEBUG_printf("gc_sweep_free_blocks(%p)\n", (void *)PTR_FROM_BLOCK(area, block));
                     #if MICROPY_PY_GC_COLLECT_RETVAL
