@@ -22,3 +22,5 @@ package(
     base_path="$(PORT_DIR)",
     opt=3,
 )
+
+freeze("$(PORT_DIR)/modules")
