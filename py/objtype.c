@@ -98,10 +98,15 @@ static MP_DEFINE_CONST_FUN_OBJ_KW(native_base_init_wrapper_obj, 1, native_base_i
 #if !MICROPY_CPYTHON_COMPAT
 static
 #endif
-mp_obj_instance_t *mp_obj_new_instance(const mp_obj_type_t *class, const mp_obj_type_t **native_base) {
+mp_obj_instance_t *mp_obj_new_instance(const mp_obj_type_t *class, const mp_obj_type_t **native_base, bool finaliser) {
     size_t num_native_bases = instance_count_native_bases(class, native_base);
     assert(num_native_bases < 2);
-    mp_obj_instance_t *o = mp_obj_malloc_var(mp_obj_instance_t, subobj, mp_obj_t, num_native_bases, class);
+    mp_obj_instance_t *o;
+    if (finaliser) {
+        o = mp_obj_malloc_var_with_finaliser(mp_obj_instance_t, subobj, mp_obj_t, num_native_bases, class);
+    } else {
+        o = mp_obj_malloc_var(mp_obj_instance_t, subobj, mp_obj_t, num_native_bases, class);
+    }
     mp_map_init(&o->members, 0);
     // Initialise the native base-class slot (should be 1 at most) with a valid
     // object.  It doesn't matter which object, so long as it can be uniquely
@@ -304,7 +309,17 @@ static mp_obj_t mp_obj_instance_make_new(const mp_obj_type_t *self, size_t n_arg
     if (init_fn[0] == MP_OBJ_NULL || init_fn[0] == MP_OBJ_SENTINEL) {
         // Either there is no __new__() method defined or there is a native
         // constructor.  In both cases create a blank instance.
-        o = mp_obj_new_instance(self, &native_base);
+
+        // Lookup __del__ to see if the user type has a finaliser.
+        // TODO: could maybe optimise this by looking it up in mp_obj_new_type
+        // and defining a new MP_TYPE_FLAG_xxx.
+        init_fn[0] = init_fn[1] = MP_OBJ_NULL;
+        lookup.attr = MP_QSTR___del__;
+        lookup.slot_offset = 0;
+        mp_obj_class_lookup(&lookup, self);
+
+        bool finaliser = init_fn[0] != MP_OBJ_NULL;
+        o = mp_obj_new_instance(self, &native_base, finaliser);
 
         // Since type->make_new() implements both __new__() and __init__() in
         // one go, of which the latter may be overridden by the Python subclass,
