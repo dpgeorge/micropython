@@ -156,6 +156,10 @@ typedef struct _mp_state_mem_t {
     // This is a global mutex used to make the GC thread-safe.
     mp_thread_recursive_mutex_t gc_mutex;
     #endif
+
+    #if MICROPY_PY_WEAKREF
+    mp_map_t mp_weakref_map;
+    #endif
 } mp_state_mem_t;
 
 // This structure hold runtime and VM information.  It includes a section

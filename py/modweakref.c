@@ -70,7 +70,7 @@ static mp_obj_t ref___del__(mp_obj_t self_in);
 
 void gc_weakref_about_to_be_freed(void *ptr) {
     mp_obj_t idx = PTR_TO_INT_OBJ(ptr);
-    mp_map_elem_t *elem = mp_map_lookup(&MP_STATE_VM(mp_weakref_map), idx, MP_MAP_LOOKUP);
+    mp_map_elem_t *elem = mp_map_lookup(&MP_STATE_MEM(mp_weakref_map), idx, MP_MAP_LOOKUP);
     if (elem != NULL) {
         // Mark element as being freed.
         elem->key = mp_const_none;
@@ -78,7 +78,7 @@ void gc_weakref_about_to_be_freed(void *ptr) {
 }
 
 void gc_weakref_sweep(void) {
-    mp_map_t *map = &MP_STATE_VM(mp_weakref_map);
+    mp_map_t *map = &MP_STATE_MEM(mp_weakref_map);
     for (size_t i = 0; i < map->alloc; i++) {
         if (map->table[i].key == mp_const_none) {
             // Element was just freed, so call all the registered callbacks.
@@ -142,7 +142,7 @@ static mp_obj_t mp_obj_ref_make_new(const mp_obj_type_t *type, size_t n_args, si
 
     // Create or get the entry in mp_weakref_map corresponding to this object.
     mp_obj_t obj_weak_reference = WEAK_REFERENCE_FROM_HEAP_PTR(ptr);
-    mp_map_elem_t *elem = mp_map_lookup(&MP_STATE_VM(mp_weakref_map), obj_weak_reference, MP_MAP_LOOKUP_ADD_IF_NOT_FOUND);
+    mp_map_elem_t *elem = mp_map_lookup(&MP_STATE_MEM(mp_weakref_map), obj_weak_reference, MP_MAP_LOOKUP_ADD_IF_NOT_FOUND);
     if (elem->value == MP_OBJ_NULL) {
         // This heap object does not have any existing weakref's, so initialise it.
         elem->value = REF_FIN_LIST_OBJ_TAIL;
@@ -211,7 +211,7 @@ static mp_obj_t mp_obj_ref_call(mp_obj_t self_in, size_t n_args, size_t n_kw, co
 
 static mp_obj_t ref___del__(mp_obj_t self_in) {
     mp_obj_ref_t *self = MP_OBJ_TO_PTR(self_in);
-    mp_map_elem_t *elem = mp_map_lookup(&MP_STATE_VM(mp_weakref_map), self->obj_weak_ref, MP_MAP_LOOKUP);
+    mp_map_elem_t *elem = mp_map_lookup(&MP_STATE_MEM(mp_weakref_map), self->obj_weak_ref, MP_MAP_LOOKUP);
     if (elem != NULL) {
         for (mp_obj_t *link = &elem->value; REF_FIN_LIST_OBJ_TO_PTR(*link) != NULL; link = &REF_FIN_LIST_OBJ_TO_PTR(*link)->ref_fin_next) {
             if (self == REF_FIN_LIST_OBJ_TO_PTR(*link)) {
@@ -308,7 +308,6 @@ const mp_obj_module_t mp_module_weakref = {
     .globals = (mp_obj_dict_t *)&mp_module_weakref_globals,
 };
 
-MP_REGISTER_ROOT_POINTER(mp_map_t mp_weakref_map);
 MP_REGISTER_MODULE(MP_QSTR_weakref, mp_module_weakref);
 
 #endif // MICROPY_PY_WEAKREF
