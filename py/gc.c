@@ -112,7 +112,7 @@
 
 #if MICROPY_PY_WEAKREF
 // WTB = weakref table byte
-// if set, then the corresponding block may have a weakref in MP_STATE_VM(mp_weakref_map).
+// if set, then the corresponding block may have a weakref in MP_STATE_MEM(mp_weakref_map).
 #define BLOCKS_PER_WTB (8)
 #define WTB_GET(area, block) ((area->gc_weakref_table_start[(block) / BLOCKS_PER_WTB] >> ((block) & 7)) & 1)
 #define WTB_SET(area, block) do { area->gc_weakref_table_start[(block) / BLOCKS_PER_WTB] |= (1 << ((block) & 7)); } while (0)
@@ -255,6 +255,10 @@ void gc_init(void *start, void *end) {
     #endif
 
     GC_MUTEX_INIT();
+
+    #if MICROPY_PY_WEAKREF
+    mp_map_init(&MP_STATE_MEM(mp_weakref_map), 0);
+    #endif
 }
 
 #if MICROPY_GC_SPLIT_HEAP
@@ -579,6 +583,10 @@ void gc_sweep_all(void) {
 void gc_collect_end(void) {
     gc_deal_with_stack_overflow();
     gc_sweep_run_finalisers();
+    #if MICROPY_PY_WEAKREF
+    gc_collect_root((void **)&MP_STATE_MEM(mp_weakref_map).table, 1);
+    gc_deal_with_stack_overflow();
+    #endif
     gc_sweep_free_blocks();
     #if MICROPY_GC_SPLIT_HEAP
     MP_STATE_MEM(gc_last_free_area) = &MP_STATE_MEM(area);

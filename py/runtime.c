@@ -179,10 +179,6 @@ void mp_init(void) {
     MP_STATE_VM(usbd) = MP_OBJ_NULL;
     #endif
 
-    #if MICROPY_PY_WEAKREF
-    mp_map_init(&MP_STATE_VM(mp_weakref_map), 0);
-    #endif
-
     #if MICROPY_PY_THREAD_GIL
     mp_thread_mutex_init(&MP_STATE_VM(gil_mutex));
     #endif
